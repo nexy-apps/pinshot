@@ -142,12 +142,15 @@ Vendor/Sparkle/     更新の仕組み（Sparkle）の配布物。make が取り
   | 更新の試験（`make update-test`） | `app.nexy.Pinshot.updatetest` | Pinshot UpdateTest | `PinshotUpdateTest` | `nexy Dev Signing` |
   | テスト（`make test`） | `app.nexy.Pinshot.tests` | — | — | `nexy Dev Signing` |
 
-- ビルドの設定は `project.yml` の 3 つ。Debug（`make build`・`make run`）、Install（`make install`。Release と同じ最適化で、ID・名前・データのフォルダ・証明書・空の公開鍵は Debug と同じ。YAML のアンカーで Debug と共有する）、Release（`make dist`）。Pinshot はサンドボックスを使わないので、データのフォルダ（`~/Library/Application Support/<名前>`）を Info.plist の `PinshotDataFolderName` で分ける（`AppFolders`）。分けないと、開発のビルドが配る版の履歴・浮かせた画像を読み、自分の設定（残す期間・数）で消してしまう
+- ビルドの設定は `project.yml` の 3 つ。Debug（`make build`・`make run`）、Install（`make install`。Release と同じ最適化・Hardened Runtime で、ID・名前・データのフォルダ・証明書・空の公開鍵は Debug と同じ。YAML のアンカーで Debug と共有する）、Release（`make dist`）。Pinshot はサンドボックスを使わないので、データのフォルダ（`~/Library/Application Support/<名前>`）を Info.plist の `PinshotDataFolderName` で分ける（`AppFolders`）。分けないと、開発のビルドが配る版の履歴・浮かせた画像を読み、自分の設定（残す期間・数）で消してしまう
 - 開発のビルド・テスト・アイコンや README の画像を作る道具も、開発用の証明書で署名する。証明書がなければ止まって `make cert` を案内し、`ADHOC=1` を付けたときだけアドホック署名にする（`1` だけを受け付ける。配る版には効かない）。`make build`・`make install` は、ビルドのあとに想定の署名になったかを `codesign -dvv` で確かめる（開発用の証明書は人ごとに違うので、名前で見る）
 - 配る版用の証明書と、更新ファイルの署名の鍵（Sparkle・アカウント名 `nexy-release`）は、作者の Mac の鍵付きのキーチェーン（金庫。`~/Library/Keychains/nexy-release.keychain-db`）に入れる（Pin シリーズで共通。作者が Pinshelf の `scripts/create-nexy-keys.sh` で一度だけ作った）。金庫はふだん閉まっていて、検索リストにも入れない（閉まった金庫をほかのプログラムが探すと、パスワードの画面が出るため）。`make dist`・`make publish` は `scripts/vault.sh` を通して、その場でパスワードを聞いて開け、開けている間だけ検索リストに入れ（Xcode は、検索リストにない箱の証明書を `--keychain` を渡しても見つけられない）、終わったら（失敗や control + C でも）閉めて検索リストを戻す
 - 証明書は名前ではなく指紋（SHA-1）で確かめる。名前は誰でも同じものを作れるため。`make dist` は、署名の前に金庫の証明書の指紋が `project.yml` の Release の `CODE_SIGN_IDENTITY`（Xcode もこの指紋で証明書を選ぶ）と合うか、署名のあとにアプリがその証明書で署名されたかを確かめる（`scripts/signing-check.sh`）。金庫が開いていないと、Release のビルドは「No certificate matching …」で止まり、アドホック署名にはならない
 - Apple の Developer ID は使わず、公証も受けていない（初めて開くときに「このまま開く」が要る）
-- Hardened Runtime は切っている（`ENABLE_HARDENED_RUNTIME = NO`）。埋め込んだ Sparkle は、Xcode が本体だけを証明書で署名し直し、中の部品（`Autoupdate`・`Updater.app`・XPC サービス）は配布物のアドホック署名のまま。Hardened Runtime とライブラリの検証を使っていないので、このまま動く（`codesign --verify --deep --strict` も通る）
+- 配る版と `make install` は Hardened Runtime をオンにする（動いているアプリへの割り込みや、部品の差し込みを断る。Pin シリーズで共通。公証にも要る）。Debug ではアプリのコードを `Pinshot.debug.dylib` に分けて読み込むので、自前の証明書でも読み込めるよう、Debug だけ切っている。オンにしたので、権限（entitlements）を 2 つ足している
+  - **ライブラリの検証を切る**（`cs.disable-library-validation`）：Team ID のない署名（自己署名の証明書・アドホック署名）では、Hardened Runtime のままだと、埋め込んだ Sparkle の読み込みを断られる（Pinshelf・Pinstage と同じ）
+  - **マイク**（`device.audio-input`）：Hardened Runtime では、この権限がないとマイクの音が録れない。画面収録とアクセシビリティは、権限なしで使える
+- 埋め込んだ Sparkle は、Xcode が本体だけを証明書で署名し直し、中の部品（`Autoupdate`・`Updater.app`・XPC サービス）は配布物の署名のまま
 - 配る版（Release）と `make install`（Install）には、デバッガをつなぐための許可（`get-task-allow`）を入れない（`CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO`。何もしないと、Xcode がビルドのときに足す）
 - 2026-11 に、ID（前は `dev.portfolio.pinshot`）と署名（前は `yzanbo Code Signing`。その前の 0.4.1 まではアドホック署名）を改め、0.1.0 から出し直した（前の版からは更新しない）
 
@@ -159,8 +162,8 @@ Developer ID に登録しない前提で、[Sparkle](https://sparkle-project.org
 - **本物かの確かめ**: 更新ファイル（zip）は、作者の EdDSA の鍵で署名する。アプリには公開鍵（`SUPublicEDKey`。`project.yml` の `PINSHOT_UPDATE_PUBLIC_KEY`）を入れ、Sparkle が署名を確かめてから入れ替える。鍵は Pin シリーズで共通で、秘密鍵は作者の金庫の中にあり、`generate_appcast` が版の一覧を作るときに zip に署名する（`sign_update` は使わない）。公開鍵の入っていないビルド（開発のビルド。`project.yml` の Debug と Install は空にする）では、更新の機能を出さない（`SparkleUpdater.start` が nil を返す。配る版を「新しい版」と見て入れ替えないように）
 - **「このまま開く」が要らない理由**: Sparkle が自分でダウンロードして確かめた版からは、ダウンロードのしるし（quarantine）を外す。だから、更新で入れた版は Gatekeeper に止められない
 - **許可が外れない理由**: どの版も同じ証明書で署名しているので（上の「署名」）、入れ替えた版も同じアプリと見なされる。リリースの前に `make update-test` で確かめる（docs/TESTING.md）
-- **サンドボックス**: Pinshot は使っていないので、Sparkle の入れ替え役（XPC サービス）も、ネット接続などの許可（entitlements）も要らない（Pinshelf はサンドボックスのため、どちらも足している）
-- **知らせ方**: メニューバーに常駐するアプリなので、自動で見つけた新しい版は画面に割り込ませず、アイコンの印とメニューで知らせる（Sparkle の「控えめな知らせ」の作法。`standardUserDriverShouldHandleShowingScheduledUpdate` で、いつも自分で受け持つ）。メニューから選ぶと、Sparkle の更新の画面が前面に出る。知らせの決まりは Pin シリーズ共通（Pinshelf のノート「更新の仕組みの方針」の 8 の節）
+- **サンドボックス**: Pinshot は使っていないので、入れ替えは Sparkle の中の部品（Autoupdate）がそのまま行う。Pinshelf のような、入れ替え役の XPC サービス（`SUEnableInstallerLauncherService`）・通信の許可（`network.client`・`mach-lookup`）は要らない（Pinstage と同じ）
+- **知らせ方**: メニューバーに常駐するアプリなので、自動で見つけた新しい版は画面に割り込ませず、アイコンの印とメニューで知らせる（Sparkle の「控えめな知らせ」の作法。`standardUserDriverShouldHandleShowingScheduledUpdate` で、いつも自分で受け持つ）。メニューから選ぶと、Sparkle の更新の画面が前面に出る。知らせの決まりは Pin シリーズ共通（共通のノート「Pinシリーズの決まり」の 7 の節）
 - **確かめる間隔**: 1 時間に 1 回（`SUScheduledCheckInterval` 3600。Sparkle が受け付けるいちばん短い間隔で、VS Code と同じ）。起動したときは、前に確かめてから 1 時間以上たっていれば、すぐ確かめる。版の一覧は小さな XML 1 つなので、1 時間ごとでも GitHub への負担は小さい
 - **印の形**: カメラのアイコンの右下を丸く切り抜き、下向きの矢印を抜いた丸を置いたものに替える（`MenuBarIcon`）。テンプレート画像のままにして、色は付けない（メニューバーの色付きの点は、マイク・カメラの使用中の印と紛れやすい）。Pinshelf は丸を直径 10pt にしているが、Pinshot でそうするとカメラのレンズが欠けるので、直径 8.4pt にした（PNG に書き出して見比べた）。録画中・アップロード中は、それぞれのアイコンを出し、終わってから印入りに戻す
 - **印を消すとき**: 印は「まだ入れていない新しい版がある」の意味で、入れるか飛ばすまで出しておく（VS Code・Chrome と同じ考え方）。Sparkle の説明書は「画面を見てもらったら印を消す」作り（`standardUserDriverDidReceiveUserAttention`）を勧めるが、それだと更新の画面を開いて「あとで通知」で閉じただけで消え、次に自動で確かめるまで戻らないので使わない。見つけた版とビルド番号を `UserDefaults` に保存し（`AppUpdates`）、起動したときに今の版より新しければ印を戻す（終了しても消えないように）。消すのは、利用者が「このバージョンはスキップ」を選んだとき（`updater(_:userDidMake:forUpdate:state:)` の `.skip`）・確かめ直して新しい版がなかったとき（`updaterDidNotFindUpdate`。通信の失敗では呼ばれない）・入れて今の版が同じか新しくなったとき。Sparkle の受け口は任意のメソッドで、Swift での名前を間違えてもエラーにならず呼ばれないだけなので、`#selector(SPUUpdaterDelegate.updater(_:userDidMake:forUpdate:state:))` のような型検査で確かめた

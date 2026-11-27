@@ -55,6 +55,14 @@ targets:
         # 新しい版を自動で確かめる（1 時間に 1 回。Sparkle が受け付けるいちばん短い間隔。VS Code と同じ間隔。設定の「一般」で切れる）
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 3600
+    entitlements:
+      path: Pinshot/Pinshot.entitlements
+      properties:
+        # Team ID のない署名（自己署名の証明書・アドホック署名）では、Hardened Runtime のままだと、
+        # アプリに入れた Sparkle の読み込みを断られるので、ライブラリの検証を切る（Pinshelf・Pinstage と同じ）
+        com.apple.security.cs.disable-library-validation: true
+        # Hardened Runtime では、マイクを使うのにこの権限が要る（録画にマイクの音を入れるため。ないと音が録れない）
+        com.apple.security.device.audio-input: true
     settings:
       base:
         # アプリの ID。配る版は app.nexy.Pinshot、開発のビルドは後ろに .dev を付ける（決まりは共通のノート「Pinシリーズの決まり」）
@@ -68,11 +76,14 @@ targets:
         # 署名は、自分で作った証明書で行う（Apple の Developer ID は使わない）。証明書は下の configs で分ける
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: ""
-        ENABLE_HARDENED_RUNTIME: NO
+        # 動いているアプリへの割り込み・部品の差し込みを断る（Pin シリーズの配る版はすべてオン。公証にも要る）
+        ENABLE_HARDENED_RUNTIME: YES
         COMBINE_HIDPI_IMAGES: YES
       configs:
         # 開発のビルド（make build・make run）: 別の ID・別の名前・別のデータのフォルダ・開発用の証明書。
-        # 更新の機能は出さない（公開鍵を空にする。配る版を「新しい版」と見て入れ替えないように）
+        # 更新の機能は出さない（公開鍵を空にする。配る版を「新しい版」と見て入れ替えないように）。
+        # Debug ではアプリのコードを Pinshot.debug.dylib に分けて読み込むので、
+        # 自前の証明書で署名しても読み込みを断られないよう、Debug だけ Hardened Runtime を切る（Pinshelf・Pinstage と同じ）
         Debug:
           <<: &dev
             PRODUCT_BUNDLE_IDENTIFIER: app.nexy.Pinshot.dev
@@ -80,7 +91,8 @@ targets:
             PINSHOT_DATA_FOLDER_NAME: Pinshot Dev
             PINSHOT_UPDATE_PUBLIC_KEY: ""
             CODE_SIGN_IDENTITY: nexy Dev Signing
-        # make install: 配る版と同じ作り（最適化・get-task-allow なし）で、ID・名前・データのフォルダ・証明書は開発のビルドと同じ
+          ENABLE_HARDENED_RUNTIME: NO
+        # make install: 配る版と同じ作り（最適化・Hardened Runtime・get-task-allow なし）で、ID・名前・データのフォルダ・証明書は開発のビルドと同じ
         Install:
           <<: *dev
           CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO

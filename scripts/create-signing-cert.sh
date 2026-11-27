@@ -16,7 +16,7 @@ set -euo pipefail
 NAME="${1:?使い方: create-signing-cert.sh <証明書の名前>（make cert から流す）}"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
-# 証明書の SHA-1（配る版の署名では、名前ではなくこれで選ぶ。project.yml の Release の CODE_SIGN_IDENTITY）
+# 証明書の SHA-1（作ったあと・すでにあるときに出す。開発のビルドは、名前でこの証明書を選ぶ）
 sha1_of_identity() {
   security find-identity -v -p codesigning | grep -F "\"${NAME}\"" | awk '{print $2}' | sort -u
 }
@@ -91,4 +91,3 @@ echo "「${NAME}」の証明書を作りました（SHA-1: $(sha1_of_identity)�
 echo "make run・make install・make update-test・make test でビルドすると、この証明書で署名されます。"
 echo "初めて署名するときに、codesign がキーチェーンの鍵を使ってよいかを聞かれます。ログインパスワードを入れて「常に許可」を押してください"
 echo "（許可するまでは、署名が errSecInternalComponent で止まります）。"
-echo "失くすと作り直せないので、キーチェーンアクセスで書き出して、パスワード付きの控え（.p12）を Mac の外に保管してください。"

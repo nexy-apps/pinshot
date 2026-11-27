@@ -31,8 +31,10 @@ SIGN_IDENTITY="${SIGN_IDENTITY:?make update-test から流してください（S
 PORT="${UPDATE_TEST_PORT:?make update-test から流してください（UPDATE_TEST_PORT がありません）}"
 if [ "${SIGN_IDENTITY}" = "-" ]; then
   SIGN_LABEL="アドホック署名"
+  PERMISSION_NOTE="アドホック署名なので、入れ替えると画面収録・アクセシビリティ・マイクの許可が外れるのが正しい動き（証明書で署名したときとの比べ用）"
 else
   SIGN_LABEL="証明書「${SIGN_IDENTITY}」で署名"
+  PERMISSION_NOTE="古い版と新しい版を同じ証明書で署名しているので、許可が外れないのが正しい動き"
 fi
 # 試験用アプリの ID・アプリのファイルとデータのフォルダの名前・画面に出る名前（決まりは、共通のノート「Pinシリーズの決まり」の 3 の節）
 TEST_ID="app.nexy.Pinshot.updatetest"
@@ -128,9 +130,10 @@ make_plist() {
 # 配る版と同じ設定（Release）で、試験用の ID のアプリをビルドする（速くするため、この Mac の CPU 向けだけ）
 build_app() {
   local plist="$1"
+  shift
   if ! xcodebuild -project Pinshot.xcodeproj -scheme Pinshot -sdk macosx -configuration Release \
     -derivedDataPath "${WORK}/DerivedData" CODE_SIGN_IDENTITY="${SIGN_IDENTITY}" ARCHS="$(uname -m)" \
-    PRODUCT_BUNDLE_IDENTIFIER="${TEST_ID}" INFOPLIST_FILE="${plist}" build >"${WORK}/build.log" 2>&1; then
+    PRODUCT_BUNDLE_IDENTIFIER="${TEST_ID}" INFOPLIST_FILE="${plist}" "$@" build >"${WORK}/build.log" 2>&1; then
     tail -30 "${WORK}/build.log"
     echo "ビルドできませんでした（記録: ${WORK}/build.log）" >&2
     exit 1
@@ -144,7 +147,7 @@ zip_app() {
 
 echo "古い版（${VERSION}・ビルド ${BUILD}・${SIGN_LABEL}）を作っています…"
 make_plist "${WORK}/plists/old.plist" "${BUILD}" "${VERSION}"
-build_app "${WORK}/plists/old.plist"
+build_app "${WORK}/plists/old.plist" "$@"
 ditto "${PRODUCT}" "${OLD_APP}"
 # 配る形に近づけて試すときに、ブラウザでダウンロードする古い版
 OLD_ZIP_NAME="${TEST_NAME}-${VERSION}.zip"
@@ -152,12 +155,12 @@ zip_app "${OLD_APP}" "${SITE}/download/${OLD_ZIP_NAME}"
 
 echo "新しい版（${NEW_VERSION}・ビルド ${NEW_BUILD}・${SIGN_LABEL}）を作っています…"
 make_plist "${WORK}/plists/new.plist" "${NEW_BUILD}" "${NEW_VERSION}"
-build_app "${WORK}/plists/new.plist"
+build_app "${WORK}/plists/new.plist" "$@"
 ditto "${PRODUCT}" "${NEW_APP}"
 NEW_ZIP="${SITE}/${TEST_NAME}-${NEW_VERSION}.zip"
 zip_app "${NEW_APP}" "${NEW_ZIP}"
 
-# 2 つの版の「同じアプリ」の条件（macOS が許可を覚えるときの目印）。証明書で署名していれば、2 つとも同じになる
+# 2 つの版の「同じアプリ」の条件（macOS が許可などを覚えるときの目印）。証明書で署名していれば、2 つとも同じになる
 OLD_REQUIREMENT="$(codesign -d -r- "${OLD_APP}" 2>&1 | sed -n 's/^designated => //p')"
 NEW_REQUIREMENT="$(codesign -d -r- "${NEW_APP}" 2>&1 | sed -n 's/^designated => //p')"
 
@@ -177,9 +180,10 @@ cat <<EOF
   古い版（${VERSION}）: ${OLD_APP}
   新しい版（${NEW_VERSION}）: 手元のサーバーから配ります
 
-  macOS が「同じアプリ」と見なす条件（許可はこれにひも付く）:
+  macOS が「同じアプリ」と見なす条件（許可などはこれにひも付く）:
     古い版: ${OLD_REQUIREMENT}
     新しい版: ${NEW_REQUIREMENT}
+  （${PERMISSION_NOTE}）
 
 どちらの試し方でも、先に、開発のビルド（Pinshot Dev）を make stop で終了し、Releases から入れた Pinshot も動いていれば終了しておきます
 （ショートカットが重ならないように）。

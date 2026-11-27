@@ -1,4 +1,4 @@
-DERIVED_DATA := build
+DERIVED_DATA := build/DerivedData
 APP := $(DERIVED_DATA)/Build/Products/Debug/Pinshot.app
 RELEASE_APP := $(DERIVED_DATA)/Build/Products/Release/Pinshot.app
 INSTALL_BUILT_APP := $(DERIVED_DATA)/Build/Products/Install/Pinshot.app
@@ -42,7 +42,11 @@ RELEASE_SIGN_IDENTITY = $(or $(shell sed -n 's/^ *CODE_SIGN_IDENTITY: *\([0-9A-F
 # 金庫の中の、更新ファイルに署名する鍵のアカウント名（Sparkle の道具に渡す）
 SPARKLE_ACCOUNT := nexy-release
 
-XCODEBUILD := xcodebuild -project Pinshot.xcodeproj -scheme Pinshot -derivedDataPath $(DERIVED_DATA)
+# xcodebuild に足す引数（ふだんは空。AI の作業環境でビルドするときなどに使う。Pinshelf・Pinstage と同じ）
+XCODEBUILD_FLAGS ?=
+
+XCODEBUILD := xcodebuild -project Pinshot.xcodeproj -scheme Pinshot -sdk macosx \
+	-derivedDataPath $(DERIVED_DATA) $(XCODEBUILD_FLAGS)
 
 # Launch Services（アプリの場所とアイコンを覚えている macOS の仕組み）に、アプリを登録し直す道具。
 # make install はアプリをファイルごとに写すので、写している途中（署名のファイルがまだない）のアプリを macOS が先に見つけて、
@@ -68,7 +72,7 @@ RELEASE_DOWNLOAD_URL := https://github.com/$(GITHUB_REPO)/releases/download/v$(R
 # 版の一覧（appcast.xml）を置く場所。組織 nexy-apps の GitHub Pages（https://nexy-apps.github.io/pinshot/appcast.xml）。
 # アプリのリポジトリには置かない（make publish が、置き場所のリポジトリに書き込んで送る）
 APPCAST_REPO := https://github.com/nexy-apps/nexy-apps.github.io.git
-APPCAST_SITE := $(DERIVED_DATA)/appcast-site
+APPCAST_SITE := build/appcast-site
 APPCAST_FILE := pinshot/appcast.xml
 # 更新の試験で、新しい版を配る手元のサーバーのポート（Pin シリーズの試験どうしでぶつからないよう、Pinshelf は 8765、Pinstage は 8767）。
 # ほかで使っているときは make update-test UPDATE_TEST_PORT=8800 のように替える
@@ -210,7 +214,7 @@ publish-in-vault:
 # ふだんの Pinshot とは別の ID・別のデータフォルダの試験用アプリを、開発用の証明書で 2 つの版作り、
 # 新しい版を手元のサーバーから配る（止めるときは control + C）
 update-test: generate dev-signing
-	SIGN_IDENTITY="$(DEV_SIGN)" UPDATE_TEST_PORT="$(UPDATE_TEST_PORT)" ./scripts/update-test.sh
+	SIGN_IDENTITY="$(DEV_SIGN)" UPDATE_TEST_PORT="$(UPDATE_TEST_PORT)" ./scripts/update-test.sh $(XCODEBUILD_FLAGS)
 
 # 更新の試験のあいだの macOS の記録を、build/update-test/system.log に書き出す
 # （許可が引き継がれたかの裏取りと、うまくいかないときの手がかりに使う）。
@@ -247,8 +251,7 @@ stop:
 	for i in $$(seq 1 50); do lsappinfo find bundleid=$(DEV_BUNDLE_ID) 2>/dev/null | grep -q . || break; sleep 0.1; done
 
 clean:
-	$(XCODEBUILD) clean
-	rm -rf $(DERIVED_DATA)/update-test $(APPCAST_SITE)
+	rm -rf $(DERIVED_DATA) build/update-test $(APPCAST_SITE)
 
 # README の絵（docs/images のいちばん上の静止画 hero.png と、使い方の GIF）を作り直す（Pinshot の見た目・動きを変えたとき）。
 # アプリのコード（入口の AppDelegate と、Sparkle を読み込む SparkleUpdater を除く）と scripts/readme-images/main.swift を一緒にビルドし、
