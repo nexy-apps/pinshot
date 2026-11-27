@@ -1,13 +1,17 @@
 DERIVED_DATA := build/DerivedData
+# ビルドしたアプリ（ビルドのフォルダの中。開発のビルドとして起動・登録するのは、下の DEV_APP に写したもの）
 APP := $(DERIVED_DATA)/Build/Products/Debug/Pinshot.app
 RELEASE_APP := $(DERIVED_DATA)/Build/Products/Release/Pinshot.app
 INSTALL_BUILT_APP := $(DERIVED_DATA)/Build/Products/Install/Pinshot.app
 # 開発のビルド（make build・run・install）の ID。make stop が、配る版を止めないよう、この ID のアプリだけを終了する。
 # ID と画面の名前は project.yml の Debug・Install で決めている（変えるときは、ここも合わせる。決まりは共通のノート「Pinシリーズの決まり」の 3 の節）
 DEV_BUNDLE_ID := app.nexy.Pinshot.dev
-# make install で入れる場所（開発のビルドなので、配る版の Pinshot.app とぶつからないよう「Pinshot Dev.app」の名前で入れる）
+# 開発のビルドを置く場所（make run・make install のどちらも、ビルドしたものをここの「Pinshot Dev.app」に写して置き換える）。
+# 開発版のアプリをいつも 1 つにし、許可の一覧（ファイルの名前が出る）や Spotlight で、配る版の Pinshot.app と見分けられるようにする。
+# 同じ ID のアプリが 2 か所にあると、どちらが開くか・どちらに許可を与えたかが分かりにくいので、Launch Services にはここだけを登録する。
+# ファイルの名前を決める PRODUCT_NAME は変えない（Pinshot.app を前提にした手順が動かなくなるため。決まりは共通のノート「Pinシリーズの決まり」の 3 の節）
 INSTALL_DIR ?= /Applications
-INSTALL_APP := $(INSTALL_DIR)/Pinshot Dev.app
+DEV_APP := $(INSTALL_DIR)/Pinshot Dev.app
 # アプリの版（project.yml の CFBundleShortVersionString）
 VERSION := $(shell sed -n 's/.*CFBundleShortVersionString: *"\(.*\)"/\1/p' project.yml)
 # β 版として出すときは BETA=1 のように番号を渡す（タグは v0.1.0-beta.1、GitHub ではプレリリースにする）
@@ -49,11 +53,16 @@ XCODEBUILD := xcodebuild -project Pinshot.xcodeproj -scheme Pinshot -sdk macosx 
 	-derivedDataPath $(DERIVED_DATA) $(XCODEBUILD_FLAGS)
 
 # Launch Services（アプリの場所とアイコンを覚えている macOS の仕組み）に、アプリを登録し直す道具。
-# make install はアプリをファイルごとに写すので、写している途中（署名のファイルがまだない）のアプリを macOS が先に見つけて、
+# make run・make install はアプリを DEV_APP にファイルごとに写すので、写している途中（署名のファイルがまだない）のアプリを macOS が先に見つけて、
 # 「開けないアプリ」（アイコンに 🚫 の印）と覚えることがある。写し終えてから登録し直して、正しい状態に替える（Pinshelf と同じ）
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 # $(call register_app,アプリの場所): アプリを Launch Services に登録し直す（失敗しても止めない）
 register_app = touch "$(1)"; $(LSREGISTER) -f "$(1)" >/dev/null 2>&1 || true
+# $(call unregister_app,アプリの場所): アプリの Launch Services の登録を外す（登録されていなくても止めない）
+unregister_app = $(LSREGISTER) -u "$(1)" >/dev/null 2>&1 || true
+# $(call place_dev_app,ビルドしたアプリ): DEV_APP に写して置き換え、Launch Services には DEV_APP だけを登録する（ビルドのフォルダのものは外す）
+place_dev_app = mkdir -p "$(DEV_APP)" && rsync -a --delete "$(1)/" "$(DEV_APP)/" && \
+	{ $(call unregister_app,$(APP)); $(call unregister_app,$(INSTALL_BUILT_APP)); $(call register_app,$(DEV_APP)); }
 
 # 更新の仕組み（Sparkle）。公式の配布物を取り寄せて Vendor/Sparkle に置く（リポジトリには入れない）。
 # 版を上げるときは、SPARKLE_VERSION と SPARKLE_SHA256（配布物 Sparkle-版.tar.xz の SHA-256）を一緒に変える
@@ -128,23 +137,23 @@ build: generate dev-signing
 release: generate
 	$(XCODEBUILD) -configuration Release ONLY_ACTIVE_ARCH=NO build
 
-# 配る版と同じ作り（project.yml の Install）でビルドし、開発のビルドとして「Pinshot Dev.app」の名前でアプリケーションフォルダに入れる
-# （前に入れたものは置き換える。ID は app.nexy.Pinshot.dev・開発用の証明書なので、配る版の Pinshot とは別のアプリとして並ぶ）。
+# 配る版と同じ作り（project.yml の Install）でビルドし、make run と同じ DEV_APP に置き換える（起動はしない）。
+# ID は app.nexy.Pinshot.dev・開発用の証明書なので、配る版の Pinshot とは別のアプリとして並ぶ。
+# make run で入れたものと ID・証明書が同じなので、どちらで入れ直しても許可は引き継がれる。
 # 動いている Pinshot Dev は、ビルドが終わってから止める
 install: install-build stop
-	mkdir -p "$(INSTALL_APP)"
-	rsync -a --delete "$(INSTALL_BUILT_APP)/" "$(INSTALL_APP)/"
-	@$(call register_app,$(INSTALL_APP))
+	@$(call place_dev_app,$(INSTALL_BUILT_APP))
 	@echo ""
-	@echo "$(INSTALL_APP) に入れました。アプリケーションフォルダから Pinshot Dev を開いてください。"
+	@echo "$(DEV_APP) に入れました。アプリケーションフォルダから Pinshot Dev を開いてください。"
 
 install-build: generate dev-signing
 	$(XCODEBUILD) -configuration Install ONLY_ACTIVE_ARCH=NO CODE_SIGN_IDENTITY="$(DEV_SIGN)" build
 	@$(call check_dev_signed,$(INSTALL_BUILT_APP))
 
-# アプリケーションフォルダから Pinshot Dev を消す（設定・データ・許可は残る）
+# アプリケーションフォルダから Pinshot Dev を消す（make run・make install のどちらで入れたものも。設定・データ・許可は残る）
 uninstall: stop
-	rm -rf "$(INSTALL_APP)"
+	@$(call unregister_app,$(DEV_APP))
+	rm -rf "$(DEV_APP)"
 
 # GitHub の Releases に置く DMG と zip を作る（dist/Pinshot-版.dmg・.zip・.sha256）。
 # DMG は、開くと Pinshot.app とアプリケーションフォルダが並び、ドラッグで入れられる形にする。
@@ -233,11 +242,12 @@ setup:
 	git config core.hooksPath .githooks
 	@echo "git hooks を有効にしました。git push の前に make test が流れます。"
 
-# 動いている Pinshot Dev を終了してから、ビルドして起動する
+# 開発用（Debug。速くビルドできる）にビルドし、動いている Pinshot Dev を終了してから、DEV_APP に置き換えて起動する
+# （make install と同じ場所なので、中身は最後に流した make run か make install のもの）
 run: build stop
-	@$(call register_app,$(APP))
+	@$(call place_dev_app,$(APP))
 	@# 念のため、開けなかったときは少し待って開き直す（最後の 1 回だけ、エラーを出す）
-	@for i in 1 2 3 4; do open "$(APP)" 2>/dev/null && exit 0; sleep 0.5; done; open "$(APP)"
+	@for i in 1 2 3 4; do open "$(DEV_APP)" 2>/dev/null && exit 0; sleep 0.5; done; open "$(DEV_APP)"
 
 # 動いている開発のビルド（Pinshot Dev）を終了する（配る版の Pinshot は止めない。どちらも中のプログラムの名前は Pinshot なので、ID で選ぶ）。
 # 浮かせている画像を保存してから終わるので、終わり切るまで（最大 5 秒）待つ。

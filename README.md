@@ -119,7 +119,7 @@ make install
 
 最初に 1 回だけ、`make cert` で署名に使う証明書を作ります（途中で Mac のログインパスワードを聞かれます。初めてビルドするときに、codesign が鍵を使ってよいかを聞かれたら「常に許可」を押します）。証明書がないと、`make install` などは止まって案内を出します。証明書を作らずにビルドしたいときは `ADHOC=1` を付けます（アドホック署名。ビルドのたびに、画面収録などの許可を取り直すことになります）。
 
-`make install` は配る版と同じ作り（最適化など）でビルドし、開発のビルドとして `/Applications/Pinshot Dev.app` に入れます（ID は `app.nexy.Pinshot.dev`、画面の名前は「Pinshot Dev」。配る版の Pinshot とは別のアプリとして並び、データも `~/Library/Application Support/Pinshot Dev` に分けて置きます。更新の機能は出ません）。Intel と Apple Silicon のどちらの Mac でも動きます。終わったら、アプリケーションフォルダから Pinshot Dev を開いてください。
+`make install` は配る版と同じ作り（最適化など）でビルドし、開発のビルドとして `/Applications/Pinshot Dev.app` に入れます（ID は `app.nexy.Pinshot.dev`、画面の名前は「Pinshot Dev」。配る版の Pinshot とは別のアプリとして並び、データも `~/Library/Application Support/Pinshot Dev` に分けて置きます。更新の機能は出ません）。開発中に使う `make run` も同じ場所に置くので、開発版のアプリはいつも 1 つです（システム設定の許可の一覧にも「Pinshot Dev.app」と出るので、配る版の「Pinshot.app」と見分けられます）。Intel と Apple Silicon のどちらの Mac でも動きます。終わったら、アプリケーションフォルダから Pinshot Dev を開いてください。
 
 初めてビルドするときに、更新の仕組み（[Sparkle](https://sparkle-project.org)）の配布物を GitHub から取り寄せて、`Vendor/Sparkle` に置きます（ネットワークが要ります。取り寄せたファイルは、決めてある SHA-256 と合うことを確かめてから使います）。
 
@@ -149,11 +149,11 @@ make uninstall
 |---|---|
 | `make cert` | 開発用の証明書（`nexy Dev Signing`）を作る（最初に一度だけ。作者以外は `DEV_CERT="〇〇 Dev Signing"` で自分の名前にできる） |
 | `make setup` | push の前に自動テストを流す git hooks を有効にする（最初に一度だけ） |
-| `make run` | 動いている Pinshot Dev を終了し、開発用（Debug）にビルドして起動する |
+| `make run` | 開発用（Debug。速くビルドできる）にビルドし、動いている Pinshot Dev を終了して、`/Applications/Pinshot Dev.app` に置き換えて起動する（コードを直しては試すときに） |
 | `make build` | 開発用にビルドするだけ |
 | `make test` | テストを動かす（アプリは起動しない） |
-| `make install` | 配る版と同じ設定でビルドし、`/Applications/Pinshot Dev.app` に入れる |
-| `make uninstall` | `/Applications/Pinshot Dev.app` を削除する（設定・データ・許可は残る） |
+| `make install` | 配る版と同じ設定でビルドし、`make run` と同じ `/Applications/Pinshot Dev.app` に入れる（起動はしない。配る版に近い形で動きを確かめるときに。配る版の Pinshot とは別のアプリとして並ぶ） |
+| `make uninstall` | `/Applications/Pinshot Dev.app` を削除する（`make run`・`make install` のどちらで入れたものも。設定・データ・許可は残る） |
 | `make dist` | Releases に置く DMG と zip（`dist/Pinshot-<版>.dmg`・`.zip`・`.sha256`）を作る（作者だけ。金庫を開けて、配る版用の証明書で署名する。パスワードを聞かれる） |
 | `make publish` | DMG と zip を作り、GitHub に Release（タグ `v<版>`）を作ってアップロードする（作者だけ）。β 版は `make publish BETA=1`（タグ `v<版>-beta.1`・プレリリース）。zip に金庫の中の鍵で署名し、版の一覧（`appcast.xml`）を作って、置き場所（[nexy-apps.github.io](https://github.com/nexy-apps/nexy-apps.github.io)）に送るまで行う（コミット済みで、GitHub の main と同じ状態からだけ動く） |
 | `make update-test` | 更新を、手元で通しで試す（別の ID の試験用アプリを 2 つの版で作り、手元のサーバーから配る。[docs/TESTING.md](docs/TESTING.md)） |

@@ -143,6 +143,11 @@ Vendor/Sparkle/     更新の仕組み（Sparkle）の配布物。make が取り
   | テスト（`make test`） | `app.nexy.Pinshot.tests` | — | — | `nexy Dev Signing` |
 
 - ビルドの設定は `project.yml` の 3 つ。Debug（`make build`・`make run`）、Install（`make install`。Release と同じ最適化・Hardened Runtime で、ID・名前・データのフォルダ・証明書・空の公開鍵は Debug と同じ。YAML のアンカーで Debug と共有する）、Release（`make dist`）。Pinshot はサンドボックスを使わないので、データのフォルダ（`~/Library/Application Support/<名前>`）を Info.plist の `PinshotDataFolderName` で分ける（`AppFolders`）。分けないと、開発のビルドが配る版の履歴・浮かせた画像を読み、自分の設定（残す期間・数）で消してしまう
+- 開発のビルドを置く場所は 1 つ: `make run`（Debug）も `make install`（Install）も、ビルドしたものを `/Applications/Pinshot Dev.app` に写して置き換える（中身は最後に流したほう）。
+  ファイルの名前（PRODUCT_NAME）は `Pinshot` のまま変えず、写すときに名前を付ける（フォルダの名前を変えても署名は崩れない）。
+  同じ ID のアプリが 2 か所にあると、どちらが開くか・システム設定の許可の一覧（ファイルの名前が出る）でどれが開発版かが分かりにくいので、
+  Launch Services には `Pinshot Dev.app` だけを登録し、ビルドのフォルダの `Pinshot.app` は登録を外す（`place_dev_app`）。
+  `make build`・`make test`・`make readme-images` は、ビルドのフォルダのまま使う（起動しないため。`make test` は、ビルドのフォルダの `PinshotTests.xctest` を `xctest` で流す）
 - 開発のビルド・テスト・アイコンや README の画像を作る道具も、開発用の証明書で署名する。証明書がなければ止まって `make cert` を案内し、`ADHOC=1` を付けたときだけアドホック署名にする（`1` だけを受け付ける。配る版には効かない）。`make build`・`make install` は、ビルドのあとに想定の署名になったかを `codesign -dvv` で確かめる（開発用の証明書は人ごとに違うので、名前で見る）
 - 配る版用の証明書と、更新ファイルの署名の鍵（Sparkle・アカウント名 `nexy-release`）は、作者の Mac の鍵付きのキーチェーン（金庫。`~/Library/Keychains/nexy-release.keychain-db`）に入れる（Pin シリーズで共通。作者が Pinshelf の `scripts/create-nexy-keys.sh` で一度だけ作った）。金庫はふだん閉まっていて、検索リストにも入れない（閉まった金庫をほかのプログラムが探すと、パスワードの画面が出るため）。`make dist`・`make publish` は `scripts/vault.sh` を通して、その場でパスワードを聞いて開け、開けている間だけ検索リストに入れ（Xcode は、検索リストにない箱の証明書を `--keychain` を渡しても見つけられない）、終わったら（失敗や control + C でも）閉めて検索リストを戻す
 - 証明書は名前ではなく指紋（SHA-1）で確かめる。名前は誰でも同じものを作れるため。`make dist` は、署名の前に金庫の証明書の指紋が `project.yml` の Release の `CODE_SIGN_IDENTITY`（Xcode もこの指紋で証明書を選ぶ）と合うか、署名のあとにアプリがその証明書で署名されたかを確かめる（`scripts/signing-check.sh`）。金庫が開いていないと、Release のビルドは「No certificate matching …」で止まり、アドホック署名にはならない
