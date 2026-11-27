@@ -1,16 +1,10 @@
-## この版の主な変更（0.4.1-beta.1 から）
+## この版について（0.1.0）
 
 <!-- 出すたびに、この版の変更に書き直す（make publish が、リリースの説明の先頭に入れる） -->
 
-### 新しく使えるようになったこと
+アプリの ID と署名を新しくして、0.1.0 から出し直した最初の版です。機能は 0.5.0-beta.1 と同じです（アプリの中からの更新を含みます）。
 
-- **アプリの中から更新できるようにしました**：新しい版を 1 時間に 1 回確かめ、見つけると、メニューバーのカメラのアイコンの右下に下向きの矢印の印を入れて、メニューの上で知らせます（画面には割り込みません）。印は、入れるか「このバージョンはスキップ」を選ぶまで残ります。メニューの「アップデートを確認…」からも確かめられ、そのまま入れ替えられます。更新のときは、「このまま開く」も、画面収録などの許可の取り直しも要りません。**この版へは、これまでどおりダウンロードして入れ替えてください**（0.4.1 までの版には、この機能がないため）。次の版からは、アプリの中から更新できます
+- アプリの ID を `app.nexy.Pinshot` にしました。前の β 版（ID `dev.portfolio.pinshot`）とは別のアプリとして扱われるので、前の版からは更新されません。前の版を使っていた場合は、ここから入れ直し、画面収録などの許可を取り直してください（システム設定の一覧で古い Pinshot を「−」で消してから、もう一度許可します。前の版はゴミ箱に入れてかまいません）。履歴と浮かせた画像はそのまま残りますが、設定と Gyazo へのログインは引き継がれません
+- 作者の証明書（nexy Release Signing）で署名するようにしました。これから先の版は、どれも同じ証明書で署名するので、アプリの中から更新しても、macOS の確認は出ず、許可も外れません
 
-### 変わったこと
-
-- **配る版の署名を、決まった証明書に変えました**：これまでは版ごとに署名が変わり、新しい版に入れ替えるたびに、画面収録の許可を取り直す必要がありました。この版から、どの版も同じ証明書で署名するので、更新しても macOS から同じアプリと見なされ、許可はそのまま使えます。**この版に入れ替えるときだけは、これまでと同じく、許可を取り直してください**（システム設定の一覧で古い Pinshot を「−」で削除してから、もう一度許可します）
-- **新しい版の確認のために、GitHub に接続するようになりました**：新しい版の確認と、その更新のダウンロードのときだけ接続します。撮った画像や使い方は送りません。自動の確認は、設定の「一般」→「新しい版を自動で確かめる」で止められます
-- 設定の「一般」の「Pinshot について」に、「アップデートを確認…」・「新しい版を自動で確かめる」・最後に確かめた日時を足しました
-- 配る版から、デバッガをつなぐための許可（`get-task-allow`）を外しました
-
-**English:** New — Pinshot can now update itself: it checks GitHub every hour, shows a down-arrow badge on the menu bar icon when a new version is found (no window pops up; the badge stays until you install or skip that version), and installs it from the menu ("アップデートを確認…"). Updates are verified with the author's EdDSA signature. This version still needs a manual install; later versions update in-app. Changed — releases are now signed with a fixed self-signed certificate, so Screen Recording and Accessibility permissions are kept across updates (grant them once more after installing this version). The app now also connects to GitHub, only for update checks and downloads; automatic checks can be turned off in Settings → General.
+**English:** This is the first release after changing the app ID to `app.nexy.Pinshot` and signing it with the author's own certificate (nexy Release Signing). Features are the same as 0.5.0-beta.1, including in-app updates. It does not update from earlier betas (different app ID), so please install it fresh and grant Screen Recording (and Accessibility) again; history and pinned images are kept, but settings and the Gyazo login are not carried over.
