@@ -1,23 +1,22 @@
 #!/bin/bash
-# コード署名の証明書を、ログインキーチェーンに作る（make cert）。名前は Makefile の CERT_NAME（作者は「yzanbo Code Signing」）。
+# 開発用のコード署名の証明書を、ログインキーチェーンに作る（make cert）。名前は Makefile の DEV_CERT（作者は「nexy Dev Signing」）。
 #
 # 使い方: create-signing-cert.sh <証明書の名前>
 #
-# 作者のアプリ（Pin シリーズなど）すべてで、この 1 つの証明書を使う（Developer ID と同じく、開発者ごとに 1 つ）。
-# macOS は「アプリの ID ＋ 証明書」で同じアプリかを見分けるので、毎回この証明書で署名すれば、ビルドし直しても・版を上げても、
-# 画面収録などの許可が外れない。アプリの ID が違うので、同じ証明書でも、アプリどうしの許可は混ざらない。
-# Pinshot は、配る版（make dist）にもこの証明書で署名する。
+# 開発のビルド（make build・make run・make install・make update-test・make test の一部・補助の道具）は、この証明書で署名する。
+# macOS は「アプリの ID ＋ 証明書」で同じアプリかを見分けるので、毎回この証明書で署名すれば、ビルドし直しても許可が外れない。
+# 開発する人は一人ずつ、自分の Mac でこの証明書を作る（人に渡さない。失くしても作り直せばよい）。
+# 配る版の証明書（nexy Release Signing）は別のもので、作者の金庫の中にある（Pinshelf の scripts/create-nexy-keys.sh で作った）。
+# 決まりの全体は、共通のノート「Pinシリーズの決まり」の 4 の節と docs/ARCHITECTURE.md の「署名」。
 #
-# 作るのは最初の 1 回だけ（どのリポジトリの make cert でも、同じ名前の証明書があれば作らず、その SHA-1 を出す）。
-# 作り直した証明書は、名前が同じでも別物なので、別の Mac では作らずに控え（.p12）を取り込む。
-# 決まりの全体は、共通のノート「署名の証明書の決まり」と docs/ARCHITECTURE.md の「署名」。
-# 途中で、キーチェーンの変更を許可するためのパスワードを聞かれる。
+# 作るのは最初の 1 回だけ（同じ名前の証明書があれば作らず、その SHA-1 を出す）。
+# 途中で、証明書を「署名に使ってよい」と信頼する設定のために、Mac のログインパスワードを聞かれる。
 set -euo pipefail
 
 NAME="${1:?使い方: create-signing-cert.sh <証明書の名前>（make cert から流す）}"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
-# 証明書の SHA-1（配る版の署名では、名前ではなくこれで選ぶ。Makefile の RELEASE_SIGN_IDENTITY）
+# 証明書の SHA-1（配る版の署名では、名前ではなくこれで選ぶ。project.yml の Release の CODE_SIGN_IDENTITY）
 sha1_of_identity() {
   security find-identity -v -p codesigning | grep -F "\"${NAME}\"" | awk '{print $2}' | sort -u
 }
@@ -89,7 +88,7 @@ security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$WORK/cert.pe
 
 echo
 echo "「${NAME}」の証明書を作りました（SHA-1: $(sha1_of_identity)）。"
-echo "make run・make install でビルドすると、この証明書で署名されます。"
+echo "make run・make install・make update-test でビルドすると、この証明書で署名されます。"
 echo "初めて署名するときに、codesign がキーチェーンの鍵を使ってよいかを聞かれます。ログインパスワードを入れて「常に許可」を押してください"
 echo "（許可するまでは、署名が errSecInternalComponent で止まります）。"
 echo "失くすと作り直せないので、キーチェーンアクセスで書き出して、パスワード付きの控え（.p12）を Mac の外に保管してください。"

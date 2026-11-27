@@ -2,11 +2,11 @@ import Foundation
 import os
 
 extension Logger {
-    /// Pinshot の記録（Console や make update-test-log では、subsystem「dev.portfolio.pinshot」で探す）
+    /// Pinshot の記録（Console や make update-test-log では、subsystem「app.nexy.Pinshot」で探す）
     ///
     /// subsystem は、更新の試験用アプリ（ID が違う）でも同じにしておく（記録を同じ条件で探せるように）。
     init(pinshot category: String) {
-        self.init(subsystem: "dev.portfolio.pinshot", category: category)
+        self.init(subsystem: "app.nexy.Pinshot", category: category)
     }
 }
 

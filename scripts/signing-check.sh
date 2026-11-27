@@ -1,9 +1,9 @@
 #!/bin/bash
-# 配る版に署名する証明書を確かめる（make dist・make update-test が呼ぶ）。
+# 配る版に署名する証明書を確かめる（make dist が、金庫を開けたあとに呼ぶ）。
 #
-# 配る版は、作者の「yzanbo Code Signing」を名前ではなく SHA-1 で選んで署名する（Makefile の RELEASE_SIGN_IDENTITY。
-# 理由は docs/ARCHITECTURE.md の「署名」）。SHA-1 で選ぶので、作り直した証明書では、そもそも署名できない。
-# ここでは、その証明書がないときに控えの取り込み方を出し、署名のあとに、その証明書で署名されたかを確かめる。
+# 配る版は、作者の「nexy Release Signing」（金庫の中）を、名前ではなく SHA-1 で選んで署名する（project.yml の Release の CODE_SIGN_IDENTITY）。
+# 名前は誰でも同じものを作れるので、SHA-1 で選ぶ。作り直した証明書や、同じ名前の別の証明書では、そもそも署名できない。
+# ここでは、その証明書が見つからないときに案内を出し、署名のあとに、その証明書で署名されたかを確かめる。
 #
 # 使い方:
 #   signing-check.sh keychain <証明書の SHA-1>        この Mac に、その証明書があるか（ビルドの前）
@@ -18,9 +18,9 @@ case "${1:-}" in
   keychain)
     [ "$#" -eq 2 ] || { echo "${USAGE}" >&2; exit 1; }
     if ! security find-identity -v -p codesigning | grep -qi "$2"; then
-      echo "配る版に署名する証明書（SHA-1: $2）が、この Mac にありません（有効期限が切れたときも、ここで止まります）。" >&2
-      echo "「yzanbo Code Signing」の控え（.p12）を取り込んでください（共通のノート「署名の証明書の決まり」・docs/ARCHITECTURE.md の「署名」）。" >&2
-      echo "この Mac で make cert を流して作ると別の証明書になり、それで配ると、更新を入れた人の許可が外れます。" >&2
+      echo "配る版に署名する証明書（nexy Release Signing・SHA-1: $2）が、開けた金庫の中に見つかりません。" >&2
+      echo "金庫を作り直したときは、控え（.p12）を金庫に取り込んでください（共通のノート「Pinシリーズの決まり」の 4 の節）。" >&2
+      echo "新しく作った証明書は別物なので、それで配ると、入れてもらったアプリが別のアプリ扱いになります。" >&2
       exit 1
     fi
     ;;

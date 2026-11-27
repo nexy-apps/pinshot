@@ -1,9 +1,10 @@
 #!/bin/bash
 # 更新を、手元で通しで試す準備をする（make update-test。手順は docs/TESTING.md の「更新を通しで試す」）。
 #
-# ふだんの Pinshot とは別の ID・別の名前（PinshotUpdateTest）の試験用アプリを、古い版と新しい版の 2 つ作り、
+# ふだんの Pinshot とは別の ID（app.nexy.Pinshot.updatetest）・別の名前（Pinshot UpdateTest）の試験用アプリを、古い版と新しい版の 2 つ作り、
 # 新しい版を手元のサーバー（http://localhost:8766）から配る。古い版を開くと、Sparkle が新しい版を見つけて入れ替える。
-# いちばん確かめたいのは、配る版と同じ証明書で署名した版どうしなら、更新しても画面収録・アクセシビリティの許可が外れないこと。
+# いちばん確かめたいのは、同じ証明書で署名した版どうしなら、更新しても画面収録・アクセシビリティの許可が外れないこと
+# （配る版はどの版も nexy Release Signing で署名する。試験用アプリは、同じ形を開発用の証明書 nexy Dev Signing で試す）。
 #
 # 古い版の開き方は 2 通り:
 # - 手早く: 手元でビルドしたもの（build/update-test/old）を、そのまま開く
@@ -14,13 +15,12 @@
 # - データ（履歴・浮かせた画像・録画）は、Info.plist の PinshotDataFolderName で別のフォルダ
 #   （~/Library/Application Support/PinshotUpdateTest）に置く（Pinshot はサンドボックスを使わないので、
 #   分けないと、ふだんの Pinshot の履歴を読み、試験用アプリの設定で消してしまう）
-# - 更新ファイルの署名の鍵は、その場で作る試験用のもの（キーチェーンは使わない。リリース用の鍵がなくても試せる）
+# - 更新ファイルの署名の鍵は、その場で作る試験用のもの（キーチェーンは使わない。金庫がなくても試せる）
 # - 試験用アプリだけ、手元のサーバー（暗号化なし）から読めるように、通信の例外を足す（配る版には入れない）
 #
 # 使い方: make update-test から流す（証明書とポートは、Makefile が環境変数で渡す）
-#   環境変数 SIGN_IDENTITY: アプリの署名に使う証明書（Makefile の UPDATE_TEST_SIGN_IDENTITY。配る版と同じ証明書の SHA-1）。
-#     "-" ならアドホック署名にして、ID と名前の後ろに Adhoc を付ける（許可が外れることを比べるため。macOS は許可を
-#     アプリの ID と署名にひも付けて覚えるので、署名のやり方ごとに ID を分けて、システム設定の一覧で混ざらないようにする）
+#   環境変数 SIGN_IDENTITY: アプリの署名に使う証明書（make update-test が、開発用の証明書 nexy Dev Signing を渡す。
+#     make update-test ADHOC=1 のときは "-" でアドホック署名。許可が外れることを比べるため）
 #   環境変数 UPDATE_TEST_PORT: 手元のサーバーのポート（Makefile の UPDATE_TEST_PORT）。試験用アプリの中にも書き込む
 #   環境変数 NO_SERVER=1: アプリと版の一覧を作るだけで、サーバーは動かさない
 #
@@ -30,17 +30,14 @@ set -euo pipefail
 SIGN_IDENTITY="${SIGN_IDENTITY:?make update-test から流してください（SIGN_IDENTITY がありません）}"
 PORT="${UPDATE_TEST_PORT:?make update-test から流してください（UPDATE_TEST_PORT がありません）}"
 if [ "${SIGN_IDENTITY}" = "-" ]; then
-  SUFFIX="Adhoc"
   SIGN_LABEL="アドホック署名"
 else
-  SUFFIX=""
-  # 証明書がなければ、ビルドの前に、控えの取り込み方を出して止める
-  ./scripts/signing-check.sh keychain "${SIGN_IDENTITY}"
-  CERT_NAME="$(security find-identity -v -p codesigning | grep -i -m1 "${SIGN_IDENTITY}" | sed -n 's/.*"\(.*\)".*/\1/p')"
-  SIGN_LABEL="証明書「${CERT_NAME}」で署名"
+  SIGN_LABEL="証明書「${SIGN_IDENTITY}」で署名"
 fi
-TEST_ID="dev.portfolio.pinshot.UpdateTest${SUFFIX}"
-TEST_NAME="PinshotUpdateTest${SUFFIX}"
+# 試験用アプリの ID・アプリのファイルとデータのフォルダの名前・画面に出る名前（決まりは、共通のノート「Pinシリーズの決まり」の 3 の節）
+TEST_ID="app.nexy.Pinshot.updatetest"
+TEST_NAME="PinshotUpdateTest"
+TEST_DISPLAY_NAME="Pinshot UpdateTest"
 ROOT="$(pwd)"
 WORK="${ROOT}/build/update-test"
 SITE="${WORK}/site"
@@ -50,13 +47,10 @@ PRODUCT="${WORK}/DerivedData/Build/Products/Release/Pinshot.app"
 PLIST_BUDDY=/usr/libexec/PlistBuddy
 
 # 試験用アプリが動いたままだと、作り直した古い版を開いても、動いているほうが前に出るだけになる
-# （署名のやり方が違うほうの試験用アプリも、作り直しで消すので、動いていないことを確かめる）
-for id in dev.portfolio.pinshot.UpdateTest dev.portfolio.pinshot.UpdateTestAdhoc; do
-  if lsappinfo find bundleid="${id}" 2>/dev/null | grep -q .; then
-    echo "試験用の Pinshot（${id}）が動いています。終了してから、もう一度流してください。" >&2
-    exit 1
-  fi
-done
+if lsappinfo find bundleid="${TEST_ID}" 2>/dev/null | grep -q .; then
+  echo "試験用の Pinshot（${TEST_DISPLAY_NAME}）が動いています。終了してから、もう一度流してください。" >&2
+  exit 1
+fi
 
 # サーバーを動かせるか（ポートが空いているか）を、ビルドの前に確かめる（ビルドには数分かかるので、作り終えてから止まらないように）。
 # サーバーと同じく 127.0.0.1 のそのポートで受け口を開いてみて、開けなければ止める
@@ -104,6 +98,8 @@ mkdir -p "${WORK}/old" "${WORK}/new" "${SITE}/download" "${WORK}/plists"
 # 試験用の鍵を作る（1 行目が秘密鍵、2 行目が公開鍵）
 echo "試験用の鍵を作っています…"
 xcrun swiftc -O -module-cache-path "${WORK}/module-cache" scripts/update-test-key.swift -o "${WORK}/make-key"
+# 補助の道具も、アプリと同じ証明書で署名する（アドホック署名にするのは ADHOC=1 のときだけ。決まりの 5 の節）
+codesign -f -s "${SIGN_IDENTITY}" "${WORK}/make-key" 2>/dev/null
 KEYS="$("${WORK}/make-key")"
 KEY_FILE="${WORK}/test-private-key.txt"
 echo "${KEYS}" | sed -n 1p > "${KEY_FILE}"
@@ -115,8 +111,8 @@ make_plist() {
   local output="$1" build="$2" version="$3"
   cp Pinshot/Info.plist "${output}"
   "${PLIST_BUDDY}" \
-    -c "Set :CFBundleDisplayName ${TEST_NAME}" \
-    -c "Add :PinshotDataFolderName string ${TEST_NAME}" \
+    -c "Set :CFBundleDisplayName ${TEST_DISPLAY_NAME}" \
+    -c "Set :PinshotDataFolderName ${TEST_NAME}" \
     -c "Set :CFBundleVersion ${build}" \
     -c "Set :CFBundleShortVersionString ${version}" \
     -c "Set :SUFeedURL http://localhost:${PORT}/appcast.xml" \
@@ -185,8 +181,9 @@ cat <<EOF
     古い版: ${OLD_REQUIREMENT}
     新しい版: ${NEW_REQUIREMENT}
 
-どちらの試し方でも、先に、ふだんの Pinshot を終了しておきます（make stop。ショートカットが重ならないように）。
-試験用アプリの名前は ${TEST_NAME} です（メニューバーのアイコンは、ふだんの Pinshot と同じカメラ）。
+どちらの試し方でも、先に、開発のビルド（Pinshot Dev）を make stop で終了し、Releases から入れた Pinshot も動いていれば終了しておきます
+（ショートカットが重ならないように）。
+試験用アプリの名前は ${TEST_DISPLAY_NAME} です（アプリのファイルは ${TEST_NAME}.app。メニューバーのアイコンは、ふだんの Pinshot と同じカメラ）。
 データは ~/Library/Application Support/${TEST_NAME} に置くので、ふだんの Pinshot の履歴や浮かせた画像には触れません。
 
 ■ 手早く試す（手元でビルドした古い版から更新する）
@@ -196,7 +193,7 @@ cat <<EOF
      （印が付くのは、初めて開いたときか、前に確かめてから 1 時間以上たっているとき。付かなければ、4 で「アップデートを確認…」から進める。
      前の試験の設定が残っていると、確かめる前から印が出る。自動で見つけるところから見たいときは、先に defaults delete ${TEST_ID}）
   2. 使い方の窓（初めて開くと出る。メニューの「使い方と許可…」でも出る）から、画面収録とアクセシビリティを許可する
-     （システム設定の一覧には ${TEST_NAME} と出る。画面収録をオンにして、開き直すよう言われたら開き直す。開き直しても印は残る）
+     （システム設定の一覧には ${TEST_DISPLAY_NAME} か ${TEST_NAME} と出る。画面収録をオンにして、開き直すよう言われたら開き直す。開き直しても印は残る）
      ⌘⇧2 で 1 枚撮り、浮かせたままにする。設定の「一般」で「ログイン時に起動」をオンにする
   3. 印が消えないことを確かめる: 「新しいバージョン … があります…」を選び、更新の画面が出たら「あとで通知」で閉じる。
      続けて、メニューの「Pinshot を終了」で終了し、もう一度開く。どちらのあとも、印とメニューの知らせが残っているか
@@ -215,7 +212,7 @@ ${FOLDER_NOTE}  5. 入れ替わって開き直したら、次を確かめる:
        http://localhost:${PORT}/download/${OLD_ZIP_NAME}
   2. 「ダウンロード」フォルダにできた ${TEST_NAME}.app を、Finder で「アプリケーション」フォルダへ移す
      （zip のままのときは、ダブルクリックで展開してから）
-  3. 移した ${TEST_NAME} を開く。「開発元を確認できない」と止められるので、
+  3. 移した ${TEST_NAME} を開く。「"${TEST_NAME}.app"は開いていません」と止められるので、「完了」を押し（「ゴミ箱に入れる」は押さない）、
      システム設定 →「プライバシーとセキュリティ」の下の方の「このまま開く」で開く
      （ここでは、ターミナルの xattr -d では開かない。ダウンロードの印を付けたまま試すため）
      止められずにそのまま開いたときは、そのまま進めてよい（この Mac で一度開いたことのある版は、止められないことがある。
@@ -228,7 +225,8 @@ ${FOLDER_NOTE}  5. 入れ替わって開き直したら、次を確かめる:
   - アプリケーションフォルダに入れた ${TEST_NAME}.app は、ゴミ箱に入れる
   - このサーバーを control + C で止める
   - 試験用アプリの許可を外す: システム設定 →「プライバシーとセキュリティ」の「画面収録」「アクセシビリティ」で
-    ${TEST_NAME} を選んで「−」で消す（ターミナルなら tccutil reset ScreenCapture ${TEST_ID} と tccutil reset Accessibility ${TEST_ID}）
+    ${TEST_DISPLAY_NAME} を選んで「−」で消す（ターミナルなら tccutil reset ScreenCapture ${TEST_ID} と tccutil reset Accessibility ${TEST_ID}。
+    マイクを許可したときは tccutil reset Microphone ${TEST_ID} も）。ADHOC=1 で試したあとに証明書で試すとき（その逆も）も、先にこれで外す
   - 試験用のデータも消すときは、~/Library/Application Support/${TEST_NAME} をゴミ箱に入れ、defaults delete ${TEST_ID} を流す
     （ふだんの Pinshot のデータ ~/Library/Application Support/Pinshot と取り違えないように、フォルダの名前で確かめる）
   - 別のターミナルで make update-test-log を流すと、試験のあいだの macOS の記録が

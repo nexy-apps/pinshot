@@ -2,9 +2,10 @@ import Foundation
 
 /// アプリのデータを置くフォルダ（~/Library/Application Support/Pinshot）
 ///
-/// 更新の試験用アプリ（make update-test。ID と名前が違う）は、Info.plist の PinshotDataFolderName の名前のフォルダを使う。
-/// Pinshot はサンドボックスを使わないので、分けないと、試験用アプリがふだんの Pinshot の履歴や浮かせた画像を読み、
-/// 自分の設定（残す期間・数）で消してしまうため。ふだんの Pinshot の Info.plist には、このキーを入れない
+/// フォルダの名前は Info.plist の PinshotDataFolderName（project.yml の PINSHOT_DATA_FOLDER_NAME）で決める。
+/// 配る版は Pinshot、開発のビルド（ID が app.nexy.Pinshot.dev）は Pinshot Dev、更新の試験用アプリは PinshotUpdateTest。
+/// Pinshot はサンドボックスを使わないので、分けないと、開発のビルドや試験用アプリが配る版の履歴や浮かせた画像を読み、
+/// 自分の設定（残す期間・数）で消してしまうため。キーがないとき（古いビルド）は Pinshot
 enum AppFolders {
     static var root: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first

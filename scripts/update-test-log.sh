@@ -18,9 +18,10 @@ mkdir -p "$(dirname "${OUTPUT}")"
 # - 試験用アプリの ID・名前・置き場所が出てくる記録（許可を確かめる tccd など、macOS の側が試験用アプリについて出したもの）
 # - 試験用アプリと、その中の部品が出した記録（入れ替えの部品は、試験用アプリの ID の付いた場所に写して動く）
 # - Sparkle の記録
-PREDICATE='eventMessage CONTAINS "UpdateTest"
+# （試験用アプリの ID は app.nexy.Pinshot.updatetest・アプリのファイルは PinshotUpdateTest.app なので、大文字と小文字を区別せずに探す）
+PREDICATE='eventMessage CONTAINS[c] "UpdateTest"
   OR eventMessage CONTAINS "update-test/"
-  OR processImagePath CONTAINS "UpdateTest"
+  OR processImagePath CONTAINS[c] "UpdateTest"
   OR processImagePath CONTAINS "update-test/"
   OR subsystem == "org.sparkle-project.Sparkle"'
 
