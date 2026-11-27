@@ -3,7 +3,7 @@
 #
 # 使い方: create-signing-cert.sh <証明書の名前>
 #
-# 開発のビルド（make build・make run・make install・make update-test・make test の一部・補助の道具）は、この証明書で署名する。
+# 開発のビルド（make build・make run・make install・make update-test・make test・補助の道具）は、この証明書で署名する。
 # macOS は「アプリの ID ＋ 証明書」で同じアプリかを見分けるので、毎回この証明書で署名すれば、ビルドし直しても許可が外れない。
 # 開発する人は一人ずつ、自分の Mac でこの証明書を作る（人に渡さない。失くしても作り直せばよい）。
 # 配る版の証明書（nexy Release Signing）は別のもので、作者の金庫の中にある（Pinshelf の scripts/create-nexy-keys.sh で作った）。
@@ -88,7 +88,7 @@ security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$WORK/cert.pe
 
 echo
 echo "「${NAME}」の証明書を作りました（SHA-1: $(sha1_of_identity)）。"
-echo "make run・make install・make update-test でビルドすると、この証明書で署名されます。"
+echo "make run・make install・make update-test・make test でビルドすると、この証明書で署名されます。"
 echo "初めて署名するときに、codesign がキーチェーンの鍵を使ってよいかを聞かれます。ログインパスワードを入れて「常に許可」を押してください"
 echo "（許可するまでは、署名が errSecInternalComponent で止まります）。"
 echo "失くすと作り直せないので、キーチェーンアクセスで書き出して、パスワード付きの控え（.p12）を Mac の外に保管してください。"

@@ -238,7 +238,7 @@ stop:
 	for i in $$(seq 1 50); do lsappinfo find bundleid=$(DEV_BUNDLE_ID) 2>/dev/null | grep -q . || break; sleep 0.1; done
 
 clean:
-	xcodebuild -project Pinshot.xcodeproj -scheme Pinshot -derivedDataPath $(DERIVED_DATA) clean
+	$(XCODEBUILD) clean
 	rm -rf $(DERIVED_DATA)/update-test $(APPCAST_SITE)
 
 # README の絵（docs/images のいちばん上の静止画 hero.png と、使い方の GIF）を作り直す（Pinshot の見た目・動きを変えたとき）。
