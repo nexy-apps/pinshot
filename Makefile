@@ -6,6 +6,8 @@ INSTALL_BUILT_APP := $(DERIVED_DATA)/Build/Products/Install/Pinshot.app
 # 開発のビルド（make build・run・install）の ID。make stop が、配る版を止めないよう、この ID のアプリだけを終了する。
 # ID と画面の名前は project.yml の Debug・Install で決めている（変えるときは、ここも合わせる。決まりは共通のノート「Pinシリーズの決まり」の 3 の節）
 DEV_BUNDLE_ID := app.nexy.Pinshot.dev
+# Pinshot Dev が動いているか（シェルの条件に使う。動いていれば成功）
+DEV_RUNNING = lsappinfo find bundleid=$(DEV_BUNDLE_ID) 2>/dev/null | grep -q .
 # 開発のビルドを置く場所（make run・make install のどちらも、ビルドしたものをここの「Pinshot Dev.app」に写して置き換える）。
 # 開発版のアプリをいつも 1 つにし、許可の一覧（ファイルの名前が出る）や Spotlight で、配る版の Pinshot.app と見分けられるようにする。
 # 同じ ID のアプリが 2 か所にあると、どちらが開くか・どちらに許可を与えたかが分かりにくいので、Launch Services にはここだけを登録する。
@@ -54,7 +56,8 @@ XCODEBUILD := xcodebuild -project Pinshot.xcodeproj -scheme Pinshot -sdk macosx 
 
 # Launch Services（アプリの場所とアイコンを覚えている macOS の仕組み）に、アプリを登録し直す道具。
 # make run・make install はアプリを DEV_APP にファイルごとに写すので、写している途中（署名のファイルがまだない）のアプリを macOS が先に見つけて、
-# 「開けないアプリ」（アイコンに 🚫 の印）と覚えることがある。写し終えてから登録し直して、正しい状態に替える（Pinshelf と同じ）
+# 「開けないアプリ」（アイコンに 🚫 の印）と覚えることがある。写し終えてから登録し直して、正しい状態に替える。
+# アイコンを変えたあとも、Finder・Dock が前のアイコン（アイコンを入れる前の仮のもの）を出し続けないようにする役目もある
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 # $(call register_app,アプリの場所): アプリを Launch Services に登録し直す（失敗しても止めない）
 register_app = touch "$(1)"; $(LSREGISTER) -f "$(1)" >/dev/null 2>&1 || true
@@ -243,19 +246,19 @@ setup:
 	@echo "git hooks を有効にしました。git push の前に make test が流れます。"
 
 # 開発用（Debug。速くビルドできる）にビルドし、動いている Pinshot Dev を終了してから、DEV_APP に置き換えて起動する
-# （make install と同じ場所なので、中身は最後に流した make run か make install のもの）
+# （make install と同じ場所なので、中身は最後に流した make run か make install のもの）。
+# 終了した直後は、Launch Services がまだ「動いている」と思っていて、open が
+# 「_LSOpenURLsWithCompletionHandler() failed with error -600」で失敗することがあるので、少し待ってやり直す
+# （何度やっても起動できないときだけ、最後の open のエラーをそのまま出す）
 run: build stop
 	@$(call place_dev_app,$(APP))
-	@# 念のため、開けなかったときは少し待って開き直す（最後の 1 回だけ、エラーを出す）
-	@opened=""; for i in 1 2 3 4; do open "$(DEV_APP)" 2>/dev/null && { opened=1; break; }; sleep 0.5; done; \
+	@opened=""; for i in 1 2 3 4 5; do open "$(DEV_APP)" 2>/dev/null && { opened=1; break; }; sleep 0.5; done; \
 	[ -n "$$opened" ] || open "$(DEV_APP)"
 	@echo "$(DEV_APP) を起動しました（版 $(VERSION)）"
 
 # 動いている開発のビルド（Pinshot Dev）を終了する（配る版の Pinshot は止めない。どちらも中のプログラムの名前は Pinshot なので、ID で選ぶ）。
 # 何を止めたかを出し、浮かせている画像を保存してから終わるのを待つ。8 秒たっても終わらなければ強制終了する
 # （終わらないまま make run の open に進むと、古い Pinshot Dev が前に出るだけで、新しいビルドに入れ替わらないため）。
-# プロセスが消えても、macOS（LaunchServices）が終了を知るのは少し遅れる。知る前に open すると、
-# 終わった Pinshot に起動の知らせを送ろうとして -600 で失敗するので、lsappinfo から消えるまで待つ。
 # pid は、lsappinfo の「"pid"=123」（前の macOS）と「pid = 123 …」（いまの macOS。同じ行に Arch=… などが続く）の
 # どちらの形からも、数字だけを取る（前は「最後の = のあと」を取っていて、いまの macOS では pid が読めず、止まっていなかった）
 stop:
@@ -267,10 +270,10 @@ stop:
 	if [ -z "$$pids" ]; then echo "動いている Pinshot Dev はありません（配る版の Pinshot は止めません）"; exit 0; fi; \
 	echo "Pinshot Dev を終了します（pid$$pids。配る版の Pinshot は止めません）"; \
 	kill $$pids 2>/dev/null; \
-	for i in $$(seq 1 80); do lsappinfo find bundleid=$(DEV_BUNDLE_ID) 2>/dev/null | grep -q . || exit 0; sleep 0.1; done; \
+	for i in $$(seq 1 80); do $(DEV_RUNNING) || exit 0; sleep 0.1; done; \
 	echo "8 秒たっても終了しないので、強制終了します（pid$$pids）"; \
 	kill -9 $$pids 2>/dev/null; \
-	for i in $$(seq 1 30); do lsappinfo find bundleid=$(DEV_BUNDLE_ID) 2>/dev/null | grep -q . || exit 0; sleep 0.1; done; \
+	for i in $$(seq 1 30); do $(DEV_RUNNING) || exit 0; sleep 0.1; done; \
 	echo "Pinshot Dev を終了できませんでした。アクティビティモニタで終了してから、もう一度流してください" >&2
 
 clean:
