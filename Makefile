@@ -247,18 +247,31 @@ setup:
 run: build stop
 	@$(call place_dev_app,$(APP))
 	@# 念のため、開けなかったときは少し待って開き直す（最後の 1 回だけ、エラーを出す）
-	@for i in 1 2 3 4; do open "$(DEV_APP)" 2>/dev/null && exit 0; sleep 0.5; done; open "$(DEV_APP)"
+	@opened=""; for i in 1 2 3 4; do open "$(DEV_APP)" 2>/dev/null && { opened=1; break; }; sleep 0.5; done; \
+	[ -n "$$opened" ] || open "$(DEV_APP)"
+	@echo "$(DEV_APP) を起動しました（版 $(VERSION)）"
 
 # 動いている開発のビルド（Pinshot Dev）を終了する（配る版の Pinshot は止めない。どちらも中のプログラムの名前は Pinshot なので、ID で選ぶ）。
-# 浮かせている画像を保存してから終わるので、終わり切るまで（最大 5 秒）待つ。
+# 何を止めたかを出し、浮かせている画像を保存してから終わるのを待つ。8 秒たっても終わらなければ強制終了する
+# （終わらないまま make run の open に進むと、古い Pinshot Dev が前に出るだけで、新しいビルドに入れ替わらないため）。
 # プロセスが消えても、macOS（LaunchServices）が終了を知るのは少し遅れる。知る前に open すると、
-# 終わった Pinshot に起動の知らせを送ろうとして -600 で失敗するので、知るまで待つ
+# 終わった Pinshot に起動の知らせを送ろうとして -600 で失敗するので、lsappinfo から消えるまで待つ。
+# pid は、lsappinfo の「"pid"=123」（前の macOS）と「pid = 123 …」（いまの macOS。同じ行に Arch=… などが続く）の
+# どちらの形からも、数字だけを取る（前は「最後の = のあと」を取っていて、いまの macOS では pid が読めず、止まっていなかった）
 stop:
-	-@for asn in $$(lsappinfo find bundleid=$(DEV_BUNDLE_ID) 2>/dev/null); do \
-		pid=$$(lsappinfo info -only pid "$$asn" 2>/dev/null | sed -n 's/.*=//p'); \
-		[ -n "$$pid" ] && kill "$$pid" 2>/dev/null; \
+	-@pids=""; \
+	for asn in $$(lsappinfo find bundleid=$(DEV_BUNDLE_ID) 2>/dev/null); do \
+		pid=$$(lsappinfo info -only pid "$$asn" 2>/dev/null | sed -n 's/.*pid"* *= *\([0-9][0-9]*\).*/\1/p' | head -1); \
+		[ -n "$$pid" ] && pids="$$pids $$pid"; \
 	done; \
-	for i in $$(seq 1 50); do lsappinfo find bundleid=$(DEV_BUNDLE_ID) 2>/dev/null | grep -q . || break; sleep 0.1; done
+	if [ -z "$$pids" ]; then echo "動いている Pinshot Dev はありません（配る版の Pinshot は止めません）"; exit 0; fi; \
+	echo "Pinshot Dev を終了します（pid$$pids。配る版の Pinshot は止めません）"; \
+	kill $$pids 2>/dev/null; \
+	for i in $$(seq 1 80); do lsappinfo find bundleid=$(DEV_BUNDLE_ID) 2>/dev/null | grep -q . || exit 0; sleep 0.1; done; \
+	echo "8 秒たっても終了しないので、強制終了します（pid$$pids）"; \
+	kill -9 $$pids 2>/dev/null; \
+	for i in $$(seq 1 30); do lsappinfo find bundleid=$(DEV_BUNDLE_ID) 2>/dev/null | grep -q . || exit 0; sleep 0.1; done; \
+	echo "Pinshot Dev を終了できませんでした。アクティビティモニタで終了してから、もう一度流してください" >&2
 
 clean:
 	rm -rf $(DERIVED_DATA) build/update-test $(APPCAST_SITE)

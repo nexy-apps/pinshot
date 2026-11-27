@@ -158,7 +158,7 @@ make uninstall
 | `make publish` | DMG と zip を作り、GitHub に Release（タグ `v<版>`）を作ってアップロードする（作者だけ）。β 版は `make publish BETA=1`（タグ `v<版>-beta.1`・プレリリース）。zip に金庫の中の鍵で署名し、版の一覧（`appcast.xml`）を作って、置き場所（[nexy-apps.github.io](https://github.com/nexy-apps/nexy-apps.github.io)）に送るまで行う（コミット済みで、GitHub の main と同じ状態からだけ動く） |
 | `make update-test` | 更新を、手元で通しで試す（別の ID の試験用アプリを 2 つの版で作り、手元のサーバーから配る。[docs/TESTING.md](docs/TESTING.md)） |
 | `make update-test-log` | 更新の試験のあいだの macOS の記録を、`build/update-test/system.log` に書き出す（許可が引き継がれたかの裏取りに使う） |
-| `make stop` | 動いている Pinshot Dev を終了する（配る版の Pinshot は止めない） |
+| `make stop` | 動いている Pinshot Dev を終了する（何を止めたかを出す。8 秒たっても終わらなければ強制終了する。配る版の Pinshot は止めない） |
 | `make generate` | `Pinshot.xcodeproj` を作るだけ（Xcode で開くとき） |
 | `make icon` | アプリのアイコンを描き直す（`scripts/make-app-icon.swift` を変えたとき） |
 | `make readme-images` | README の動き（`docs/images` の GIF）を作り直す（`scripts/readme-images/main.swift`。見た目・動きを変えたとき。作っている間、画面に Pinshot の部品が少しのあいだ出る） |
