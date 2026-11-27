@@ -44,6 +44,13 @@ SPARKLE_ACCOUNT := nexy-release
 
 XCODEBUILD := xcodebuild -project Pinshot.xcodeproj -scheme Pinshot -derivedDataPath $(DERIVED_DATA)
 
+# Launch Services（アプリの場所とアイコンを覚えている macOS の仕組み）に、アプリを登録し直す道具。
+# make install はアプリをファイルごとに写すので、写している途中（署名のファイルがまだない）のアプリを macOS が先に見つけて、
+# 「開けないアプリ」（アイコンに 🚫 の印）と覚えることがある。写し終えてから登録し直して、正しい状態に替える（Pinshelf と同じ）
+LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+# $(call register_app,アプリの場所): アプリを Launch Services に登録し直す（失敗しても止めない）
+register_app = touch "$(1)"; $(LSREGISTER) -f "$(1)" >/dev/null 2>&1 || true
+
 # 更新の仕組み（Sparkle）。公式の配布物を取り寄せて Vendor/Sparkle に置く（リポジトリには入れない）。
 # 版を上げるときは、SPARKLE_VERSION と SPARKLE_SHA256（配布物 Sparkle-版.tar.xz の SHA-256）を一緒に変える
 SPARKLE_VERSION := 2.10.1
@@ -123,6 +130,7 @@ release: generate
 install: install-build stop
 	mkdir -p "$(INSTALL_APP)"
 	rsync -a --delete "$(INSTALL_BUILT_APP)/" "$(INSTALL_APP)/"
+	@$(call register_app,$(INSTALL_APP))
 	@echo ""
 	@echo "$(INSTALL_APP) に入れました。アプリケーションフォルダから Pinshot Dev を開いてください。"
 
@@ -223,6 +231,7 @@ setup:
 
 # 動いている Pinshot Dev を終了してから、ビルドして起動する
 run: build stop
+	@$(call register_app,$(APP))
 	@# 念のため、開けなかったときは少し待って開き直す（最後の 1 回だけ、エラーを出す）
 	@for i in 1 2 3 4; do open "$(APP)" 2>/dev/null && exit 0; sleep 0.5; done; open "$(APP)"
 
