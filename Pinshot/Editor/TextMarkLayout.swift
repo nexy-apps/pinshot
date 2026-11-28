@@ -83,7 +83,9 @@ enum TextMarkLayout {
     // MARK: - 読み取った文字から行を作る
 
     /// Vision の行（0〜1・左下が原点）を、画像のポイント座標の行にする。
-    /// 1 文字ずつの位置が分からない（どれも行と同じ幅になる）ときは、行を文字の数で等分する
+    /// 1 文字ずつの位置が分からない（どれも行と同じ幅になる）ときは、行を文字の数で等分する。
+    /// 一部の文字だけ位置がおかしいとき（空白など、Vision が位置を返さず空の四角になる・行と同じ幅になる・行の外にある）は、
+    /// 前後の文字の間で埋める（空の四角は画像の左端にあるので、そのままだと帯が左端から始まってしまう）
     static func lines(from recognized: [RecognizedLine], imageSize: CGSize) -> [TextLineBoxes] {
         let target = CGRect(origin: .zero, size: imageSize)
         return recognized.compactMap { line in
@@ -96,8 +98,35 @@ enum TextMarkLayout {
                 let even = characters.indices.map { CGRect(x: box.minX + CGFloat($0) * width, y: box.minY, width: width, height: box.height) }
                 return TextLineBoxes(box: box, characters: even)
             }
-            return TextLineBoxes(box: box, characters: characters)
+            return TextLineBoxes(box: box, characters: repairingCharacters(characters, in: box))
         }
+    }
+
+    /// 位置のおかしい文字を、前後の位置の分かる文字の間で埋める（続けておかしいときは、その間を等分する）。
+    /// 前（後ろ）に位置の分かる文字がなければ、行の始め（終わり）までを使う
+    static func repairingCharacters(_ characters: [CGRect], in box: CGRect) -> [CGRect] {
+        let usable = characters.map { rect in
+            rect.width > 0 && rect.height > 0
+                && (characters.count == 1 || rect.width < box.width * 0.9)
+                && rect.maxX > box.minX && rect.minX < box.maxX
+        }
+        guard usable.contains(false) else { return characters }
+        var result = characters
+        var index = 0
+        while index < characters.count {
+            guard !usable[index] else { index += 1; continue }
+            // おかしい文字が続く範囲（index..<end）
+            var end = index
+            while end < characters.count, !usable[end] { end += 1 }
+            let left = index > 0 ? characters[index - 1].maxX : box.minX
+            let right = end < characters.count ? characters[end].minX : box.maxX
+            let width = max(0, right - left) / CGFloat(end - index)
+            for offset in 0..<(end - index) {
+                result[index + offset] = CGRect(x: left + CGFloat(offset) * width, y: box.minY, width: width, height: box.height)
+            }
+            index = end
+        }
+        return result
     }
 }
 
