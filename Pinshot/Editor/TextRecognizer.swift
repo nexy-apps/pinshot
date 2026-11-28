@@ -51,10 +51,10 @@ enum TextRecognizer {
         try observations(in: image).compactMap { observation -> RecognizedLine? in
             guard let candidate = observation.topCandidates(1).first, !candidate.string.isEmpty else { return nil }
             let string = candidate.string
-            // 1 文字ずつの位置（取れない文字は、行の位置にしておく。等分するかは TextMarkLayout が決める）
+            // 1 文字ずつの位置（取れない文字は空の四角にしておく。前後の文字の間で埋めるか・等分するかは TextMarkLayout が決める）
             let characters = string.indices.map { index -> CGRect in
                 let range = index..<string.index(after: index)
-                return (try? candidate.boundingBox(for: range))?.boundingBox ?? observation.boundingBox
+                return (try? candidate.boundingBox(for: range))?.boundingBox ?? .zero
             }
             return RecognizedLine(box: observation.boundingBox, characters: characters)
         }

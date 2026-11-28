@@ -59,6 +59,35 @@ final class TextMarkLayoutTests: XCTestCase {
         XCTAssertEqual(lines.first?.box, CGRect(x: 10, y: 40, width: 40, height: 10))
     }
 
+    func testCharactersWithoutPositionAreFilledBetweenNeighbors() {
+        // 空白など、Vision が位置を返さない文字（空の四角＝画像の左端）は、前後の文字の間で埋める
+        let lineBox = CGRect(x: 0.2, y: 0.5, width: 0.5, height: 0.1)
+        let char = { (x: CGFloat) in CGRect(x: x, y: 0.5, width: 0.1, height: 0.1) }
+        let recognized = [RecognizedLine(box: lineBox, characters: [char(0.2), char(0.3), .zero, char(0.5), char(0.6)])]
+        let lines = TextMarkLayout.lines(from: recognized, imageSize: CGSize(width: 100, height: 100))
+        XCTAssertEqual(lines.first?.characters.map(\.minX), [20, 30, 40, 50, 60])
+        XCTAssertEqual(lines.first?.characters[2].width, 10)
+    }
+
+    func testMarkIncludingSpaceStartsAtFirstCharacterNotImageEdge() {
+        // 「ab cd」の b から d までを引くと、帯は b から始まる（空白の空の四角に引きずられて、画像の左端からにならない）
+        let lineBox = CGRect(x: 0.2, y: 0.5, width: 0.5, height: 0.1)
+        let char = { (x: CGFloat) in CGRect(x: x, y: 0.5, width: 0.1, height: 0.1) }
+        let recognized = [RecognizedLine(box: lineBox, characters: [char(0.2), char(0.3), .zero, char(0.5), char(0.6)])]
+        let lines = TextMarkLayout.lines(from: recognized, imageSize: CGSize(width: 100, height: 100))
+        let rects = TextMarkLayout.rects(from: CGPoint(x: 32, y: 45), to: CGPoint(x: 69, y: 45), lines: lines, fallbackHeight: 18)
+        XCTAssertEqual(rects.first?.minX, 30)
+        XCTAssertEqual(rects.first?.maxX, 70)
+    }
+
+    func testRunOfCharactersWithoutPositionIsSplitEvenly() {
+        // 続けて位置がないとき（行の始めの 2 文字など）は、その間を等分する。行と同じ幅の位置も、ないものとして扱う
+        let lineBox = CGRect(x: 0.2, y: 0.5, width: 0.4, height: 0.1)
+        let recognized = [RecognizedLine(box: lineBox, characters: [.zero, lineBox, CGRect(x: 0.4, y: 0.5, width: 0.1, height: 0.1), CGRect(x: 0.5, y: 0.5, width: 0.1, height: 0.1)])]
+        let lines = TextMarkLayout.lines(from: recognized, imageSize: CGSize(width: 100, height: 100))
+        XCTAssertEqual(lines.first?.characters.map(\.minX), [20, 30, 40, 50])
+    }
+
     func testAnnotationMovesAndHits() {
         let mark = Annotation(shape: .textMark([CGRect(x: 0, y: 0, width: 50, height: 20)], style: TextMarkStyle(kind: .underline)), color: .red, lineWidth: 2)
         XCTAssertTrue(mark.isMeaningful)
