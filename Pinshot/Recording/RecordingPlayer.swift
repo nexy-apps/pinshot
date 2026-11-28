@@ -229,6 +229,11 @@ final class RecordingPlayerModel: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
+    /// 履歴のウィンドウを開く（浮かせた画像の操作バーの「履歴」と同じ）
+    func openHistory() {
+        CaptureHistoryWindowController.shared.show()
+    }
+
     /// 右クリックのメニュー（操作バーと同じ操作を、同じまとまりで並べる）
     func makeContextMenu() -> NSMenu {
         let symbol = MenuEntry.symbol
@@ -252,6 +257,8 @@ final class RecordingPlayerModel: ObservableObject {
                 ? .item(title: "GIF で保存…", image: symbol("photo.on.rectangle")) { [weak self] in self?.saveGIF() }
                 : .disabled(title: "GIF で保存…（作っています）"),
             .item(title: "Finder で表示", image: symbol("folder")) { [weak self] in self?.revealInFinder() },
+            .separator,
+            .item(title: "履歴…", image: symbol("clock.arrow.circlepath")) { [weak self] in self?.openHistory() },
             .separator,
             .item(title: "閉じる", image: symbol("xmark")) { [weak self] in self?.close() },
         ])
@@ -343,7 +350,7 @@ private struct RecordingPlayerView: View {
             QuickActionButton(symbol: "doc.on.doc", help: "コピー（ファイルとして貼り付けられる）", action: model.copy)
             QuickActionButton(
                 symbol: "link",
-                help: "GIF にして \(UploadDestinations.current?.id.label ?? "上げる先") に上げ、共有リンクをコピー（上げる先は設定の「共有」。大きいときは小さくして上げる。音は入らない）",
+                help: "GIF にして \(UploadDestinations.current?.id.label ?? "上げる先") に上げ、共有リンクをコピー（上げる先は設定の「共有」。大きいときは小さくして上げる。音は入らない。2 回目からは、前に上げたリンクをコピー）",
                 action: model.uploadGIF
             )
             .disabled(model.isUploading)
@@ -353,6 +360,9 @@ private struct RecordingPlayerView: View {
             QuickActionButton(symbol: "square.and.arrow.down", help: "MP4 で保存", action: model.saveMovie)
             gifButton
             QuickActionButton(symbol: "folder", help: "Finder で表示", action: model.revealInFinder)
+            QuickActionDivider()
+            // 浮かせた画像の操作バーと同じく、右端に履歴を置く
+            QuickActionButton(symbol: "clock.arrow.circlepath", help: "履歴（撮った画像・読み取った文字・上げたもの）", action: model.openHistory)
         }
         .quickActionBarBackground()
         // 台の何もない所（縁まで）をドラッグしても、窓ごと動く（ボタン・つまみは、その上で押せる）
