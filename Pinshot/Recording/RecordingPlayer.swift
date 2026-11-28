@@ -209,10 +209,17 @@ final class RecordingPlayerModel: ObservableObject {
     func saveGIF() {
         guard gifProgress == nil else { return }
         gifProgress = 0
+        show("GIF を作っています…", sticky: true)
         exportTask = RecordingActions.saveGIF(
             url,
-            progress: { [weak self] value in self?.gifProgress = value },
-            finished: { [weak self] in self?.gifProgress = nil },
+            progress: { [weak self] value in
+                self?.gifProgress = value
+                self?.show("GIF を作っています…（\(Int(value * 100))%）", sticky: true)
+            },
+            finished: { [weak self] in
+                self?.gifProgress = nil
+                self?.show("GIF を作りました（保存先を選んでください）")
+            },
             onSaved: { [weak self] in self?.show("GIF を保存しました") }
         )
     }
@@ -359,13 +366,22 @@ private struct RecordingPlayerView: View {
             .hoverRole()
             muteButton
             QuickActionDivider()
-            // クリップボードに入れるもの。録画そのもの（MP4・GIF）は枠だけの台、上げて作る共有リンクは塗った台にして、見分けられるようにする
-            copyButtons
+            // 録画そのものを渡す（コピー・保存）は、どちらも「印 + MP4 | GIF」の枠だけの台にそろえる。
+            // 上げて作る共有リンクだけは塗った台にして、見分けられるようにする
+            formatPair(
+                symbol: "doc.on.doc",
+                mp4: ("動画（MP4）をクリップボードにコピー（ファイルとして貼り付けられる）", model.copy),
+                gif: ("GIF を作ってクリップボードにコピー（GIF の画像としても、ファイルとしても貼り付けられる。音は入らない）", model.copyGIF),
+                gifBusy: model.isCopyingGIF
+            )
+            formatPair(
+                symbol: "square.and.arrow.down",
+                mp4: ("動画（MP4）で保存（保存の設定に合わせる）", model.saveMovie),
+                gif: ("GIF を作って保存（音は入らない。長い録画は、コマを減らして軽くする）", model.saveGIF),
+                gifBusy: model.gifProgress != nil
+            )
             linkButton
             QuickActionDivider()
-            // ファイルにするもの（MP4・GIF で保存と、置き場所を見に行く）
-            QuickActionButton(symbol: "square.and.arrow.down", help: "MP4 で保存", action: model.saveMovie)
-            gifButton
             QuickActionButton(symbol: "folder", help: "Finder で表示", action: model.revealInFinder)
             QuickActionDivider()
             // 浮かせた画像の操作バーと同じく、右端に履歴を置く
@@ -389,24 +405,30 @@ private struct RecordingPlayerView: View {
         WindowDragArea(menu: { model.makeContextMenu() })
     }
 
-    /// クリップボードにコピー（動画（MP4）か GIF を選ぶ。枠だけの台に、コピーの印と「MP4 | GIF」を並べる）
-    private var copyButtons: some View {
+    /// 録画を MP4 か GIF で渡す台（枠だけの台に、何をするかの印と「MP4 | GIF」を並べる。コピーと保存で同じ形）。
+    /// GIF は作るのに時間がかかるので、作っている間は「…」にして押せなくする（進み具合は、動画の上の知らせに出す）
+    private func formatPair(
+        symbol: String,
+        mp4: (help: String, action: () -> Void),
+        gif: (help: String, action: () -> Void),
+        gifBusy: Bool
+    ) -> some View {
         HStack(spacing: 0) {
-            Image(systemName: "doc.on.doc")
+            Image(systemName: symbol)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.85))
                 .padding(.leading, 8)
                 .padding(.trailing, 2)
-            copySegment("MP4", help: "動画（MP4）をクリップボードにコピー（ファイルとして貼り付けられる）", action: model.copy)
+            formatSegment("MP4", help: mp4.help, action: mp4.action)
             Rectangle().fill(Color.white.opacity(0.35)).frame(width: 1, height: 12)
-            copySegment(model.isCopyingGIF ? "…" : "GIF", help: "GIF を作ってクリップボードにコピー（GIF の画像としても、ファイルとしても貼り付けられる。音は入らない）", action: model.copyGIF)
-                .disabled(model.isCopyingGIF)
+            formatSegment(gifBusy ? "…" : "GIF", help: gif.help, action: gif.action)
+                .disabled(gifBusy)
         }
         .frame(height: 22)
         .background(Capsule().strokeBorder(Color.white.opacity(0.4)))
     }
 
-    private func copySegment(_ title: String, help: String, action: @escaping () -> Void) -> some View {
+    private func formatSegment(_ title: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
@@ -447,32 +469,6 @@ private struct RecordingPlayerView: View {
             action: model.toggleMute
         )
         .opacity(model.hasAudio ? 1 : 0.4)
-    }
-
-    /// GIF で保存（作っている間は、同じ幅に進み具合を出す。バーの幅が変わらないように）
-    @ViewBuilder
-    private var gifButton: some View {
-        if let progress = model.gifProgress {
-            ProgressView(value: progress)
-                .progressViewStyle(.linear)
-                .tint(.white)
-                .frame(width: 60)
-                .frame(width: 76, height: 22)
-                .hoverHint("GIF を作っています")
-        } else {
-            Button(action: model.saveGIF) {
-                Text("GIF で保存")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .frame(width: 76, height: 22)
-                    .background(Capsule().strokeBorder(Color.white.opacity(0.4)))
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .hoverHint("GIF を作って保存（音は入らない。長い録画は、コマを減らして軽くする）")
-            .hoverRole()
-        }
     }
 
     /// 操作したあとの短い知らせ（浮かせた画像のお知らせと同じく、動画の真ん中に出す）
