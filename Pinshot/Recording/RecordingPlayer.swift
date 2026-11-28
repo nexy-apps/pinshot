@@ -190,10 +190,10 @@ final class RecordingPlayerModel: ObservableObject {
     func copyGIF() {
         guard !isCopyingGIF else { return }
         isCopyingGIF = true
-        show("GIF を作っています…", sticky: true)
+        show(RecordingRules.gifMakingText(), sticky: true)
         exportTask = RecordingActions.copyGIF(
             url,
-            progress: { [weak self] value in self?.show("GIF を作っています…（\(Int(value * 100))%）", sticky: true) },
+            progress: { [weak self] value in self?.show(RecordingRules.gifMakingText(progress: value), sticky: true) },
             done: { [weak self] copied in
                 self?.isCopyingGIF = false
                 self?.show(copied ? "GIF をコピーしました" : "GIF をコピーできませんでした")
@@ -209,12 +209,12 @@ final class RecordingPlayerModel: ObservableObject {
     func saveGIF() {
         guard gifProgress == nil else { return }
         gifProgress = 0
-        show("GIF を作っています…", sticky: true)
+        show(RecordingRules.gifMakingText(), sticky: true)
         exportTask = RecordingActions.saveGIF(
             url,
             progress: { [weak self] value in
                 self?.gifProgress = value
-                self?.show("GIF を作っています…（\(Int(value * 100))%）", sticky: true)
+                self?.show(RecordingRules.gifMakingText(progress: value), sticky: true)
             },
             finished: { [weak self] in
                 self?.gifProgress = nil

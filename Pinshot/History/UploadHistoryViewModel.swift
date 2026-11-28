@@ -63,9 +63,7 @@ final class UploadHistoryViewModel: ObservableObject {
     /// 手元に残っている元のファイル（録画を GIF にして上げたものの、元の録画。まだ残っていれば）。
     /// 画像は上げるときに元のファイルを残していないので、いつも nil
     func localFile(for entry: UploadHistoryEntry) -> URL? {
-        guard let name = entry.sourceName else { return nil }
-        let url = RecordingStore.shared.folder.appendingPathComponent(name)
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        entry.sourceName.flatMap(RecordingStore.shared.file(named:))
     }
 
     /// 元のファイルが手元に残っているものがあるか（下の帯・右クリックに Finder を出すか）

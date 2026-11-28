@@ -480,3 +480,14 @@ final class RecordingHistoryTests: XCTestCase {
         XCTAssertEqual(UploadHistoryRules.latest(forSource: entry.name, destination: .gyazo, in: [upload])?.id, upload.id)
     }
 }
+
+/// GIF を作っている間の知らせ
+final class GIFMakingTextTests: XCTestCase {
+    func testShowsPercentWhenProgressIsKnown() {
+        XCTAssertEqual(RecordingRules.gifMakingText(), "GIF を作っています…")
+        XCTAssertEqual(RecordingRules.gifMakingText(progress: 0.426), "GIF を作っています…（42%）")
+        // 範囲の外は、0〜100% に収める
+        XCTAssertEqual(RecordingRules.gifMakingText(progress: 1.2), "GIF を作っています…（100%）")
+        XCTAssertEqual(RecordingRules.gifMakingText(progress: -0.1), "GIF を作っています…（0%）")
+    }
+}

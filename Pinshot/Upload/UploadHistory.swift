@@ -47,8 +47,8 @@ final class UploadHistory: ObservableObject {
 
     // MARK: - 使う
 
-    /// sourceName の録画を destination に上げた、いちばん新しいもの（なければ nil）
-    func latestEntry(forSource sourceName: String, destination: UploadDestinationID) -> UploadHistoryEntry? {
+    /// sourceName の録画を上げた、いちばん新しいもの（destination を渡すと、その上げる先に上げたものだけ。なければ nil）
+    func latestEntry(forSource sourceName: String, destination: UploadDestinationID? = nil) -> UploadHistoryEntry? {
         UploadHistoryRules.latest(forSource: sourceName, destination: destination, in: entries)
     }
 
