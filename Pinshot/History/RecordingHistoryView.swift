@@ -62,13 +62,13 @@ struct RecordingHistoryView: View {
         ) {
             HistoryFooterButton(title: "浮かせる", symbol: "play.rectangle") { model.play(selected) }
             // クリップボードに入れるもの（録画そのもの）と、上げて作る共有リンクを、名前と印で見分けられるようにする
-            HistoryFooterButton(title: "MP4 をコピー", symbol: "film") { model.copyFiles(selected) }
+            HistoryFooterButton(title: "MP4 コピー", symbol: "film") { model.copyFiles(selected) }
                 .help("動画（MP4）をクリップボードにコピー（ファイルとして貼り付けられる）")
-            HistoryFooterButton(title: "GIF をコピー", symbol: "photo.on.rectangle") { model.copyGIF(selected) }
+            HistoryFooterButton(title: "GIF コピー", symbol: "photo.on.rectangle") { model.copyGIF(selected) }
                 .help("GIF を作ってクリップボードにコピー（GIF の画像としても、ファイルとしても貼り付けられる）")
             HistoryFooterButton(title: "\(UploadDestinations.current?.id.label ?? "共有") のリンク", symbol: "link") { model.copyLink(selected) }
                 .help("GIF にして上げ、共有リンク（URL）をコピー（上げてあれば、前のリンク）")
-            HistoryFooterButton(title: "GIF で保存", symbol: "photo.on.rectangle") { model.saveGIF(selected) }
+            HistoryFooterButton(title: "GIF 保存", symbol: "photo.on.rectangle") { model.saveGIF(selected) }
             HistoryFooterButton(title: "Finder", symbol: "folder") { model.reveal(selected) }
             HistoryFooterButton(title: "削除…", symbol: "trash", role: .destructive) { model.remove(selected) }
         }

@@ -15,6 +15,10 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
     private lazy var uploadModel = UploadHistoryViewModel(history: .shared, notice: notice)
     private var keyMonitor: Any?
 
+    /// ウィンドウの大きさ。下の帯のボタン（録画の一覧がいちばん多い）が「…」で切れずに読めるよう、幅は広めにする
+    static let defaultSize = NSSize(width: 1040, height: 600)
+    static let minimumSize = NSSize(width: 960, height: 380)
+
     /// ウィンドウを開いて、tab の一覧を見せる（selecting を渡すと、文字の一覧でその 1 件を、
     /// selectingRecording を渡すと、録画の一覧でその録画を選ぶ）
     func show(tab: HistoryTab = .images, selecting id: UUID? = nil, selectingRecording recording: URL? = nil) {
@@ -33,14 +37,15 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
             window.title = "履歴"
             window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
-            window.setContentSize(NSSize(width: 720, height: 520))
-            window.contentMinSize = NSSize(width: 460, height: 340)
+            window.setContentSize(Self.defaultSize)
+            window.contentMinSize = Self.minimumSize
             window.isReleasedWhenClosed = false
             window.setFrameAutosaveName("CaptureHistoryWindow")
             window.delegate = self
             if window.frame.origin == .zero { window.center() }
             self.window = window
         }
+        if let window { widenIfNeeded(window) }
         startKeyMonitor()
         // 開いている間に期間を過ぎたものは、開き直したときに消す
         CaptureHistory.shared.pruneExpired()
@@ -48,6 +53,17 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
         if let window { DockIcon.show(for: window) }
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// 前に開いたときの大きさ（覚えている大きさ）が、いまの最小より狭ければ、決まった幅に広げる（画面からはみ出さないように）
+    private func widenIfNeeded(_ window: NSWindow) {
+        let content = window.contentRect(forFrameRect: window.frame)
+        guard content.width < Self.minimumSize.width || content.height < Self.minimumSize.height else { return }
+        let size = NSSize(width: max(content.width, Self.defaultSize.width), height: max(content.height, Self.minimumSize.height))
+        window.setContentSize(size)
+        if let visible = (window.screen ?? NSScreen.main)?.visibleFrame, !visible.contains(window.frame) {
+            window.center()
+        }
     }
 
     func windowWillClose(_ notification: Notification) {
