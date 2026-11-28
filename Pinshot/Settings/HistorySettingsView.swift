@@ -45,7 +45,7 @@ struct HistorySettingsView: View {
                     limit: $settings.recordingLimit,
                     sizeLimit: $settings.recordingSizeLimit,
                     amount: recordings.summaryText,
-                    open: nil,
+                    open: { CaptureHistoryWindowController.shared.show(tab: .recordings) },
                     folder: recordings.folder,
                     canRemove: recordings.count > 0,
                     removeAll: recordings.confirmRemoveAll
@@ -56,6 +56,7 @@ struct HistorySettingsView: View {
             Section("一覧の表示") {
                 layoutPicker("撮った画像", selection: $settings.historyLayout)
                 layoutPicker("読み取った文字", selection: $settings.textHistoryLayout)
+                layoutPicker("録画", selection: $settings.recordingHistoryLayout)
                 layoutPicker("上げたもの", selection: $settings.uploadHistoryLayout)
             }
         }

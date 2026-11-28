@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 履歴のウィンドウ（撮った画像・読み取った文字・上げたものの一覧）
+/// 履歴のウィンドウ（撮った画像・読み取った文字・録画・上げたものの一覧）
 @MainActor
 final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
     static let shared = CaptureHistoryWindowController()
@@ -11,17 +11,25 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
     private let notice = HistoryNotice()
     private lazy var imageModel = CaptureHistoryViewModel(history: .shared, notice: notice)
     private lazy var textModel = TextHistoryViewModel(history: .shared, notice: notice)
+    private lazy var recordingModel = RecordingHistoryViewModel(store: .shared, notice: notice)
     private lazy var uploadModel = UploadHistoryViewModel(history: .shared, notice: notice)
     private var keyMonitor: Any?
 
-    /// ウィンドウを開いて、tab の一覧を見せる（selecting を渡すと、文字の一覧でその 1 件を選ぶ）
-    func show(tab: HistoryTab = .images, selecting id: UUID? = nil) {
+    /// ウィンドウを開いて、tab の一覧を見せる（selecting を渡すと、文字の一覧でその 1 件を、
+    /// selectingRecording を渡すと、録画の一覧でその録画を選ぶ）
+    func show(tab: HistoryTab = .images, selecting id: UUID? = nil, selectingRecording recording: URL? = nil) {
         // どこから開いても（ツールバー・右クリック・メニューバー・ショートカット・吹き出しなど）、編集中の画像は編集を終える
         PinManager.shared.endEditing()
         state.tab = tab
+        // 録画は一覧のファイルを持たないので、開くたびにフォルダの中身を数え直す（Finder で消したものも外れる）
+        RecordingStore.shared.refresh()
         if tab == .texts, let id { textModel.reveal(id) }
+        if tab == .recordings, let recording { recordingModel.reveal(url: recording) }
         if window == nil {
-            let view = HistoryWindowView(state: state, notice: notice, imageModel: imageModel, textModel: textModel, uploadModel: uploadModel)
+            let view = HistoryWindowView(
+                state: state, notice: notice, imageModel: imageModel, textModel: textModel,
+                recordingModel: recordingModel, uploadModel: uploadModel
+            )
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
             window.title = "履歴"
             window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
@@ -46,6 +54,7 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
         stopKeyMonitor()
         imageModel.clearSelection()
         textModel.clearSelection()
+        recordingModel.clearSelection()
         uploadModel.clearSelection()
         textModel.discardDrafts()
     }
@@ -60,6 +69,7 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
             let handled = switch self.state.tab {
             case .images: self.imageModel.handleKey(event)
             case .texts: self.textModel.handleKey(event)
+            case .recordings: self.recordingModel.handleKey(event)
             case .uploads: self.uploadModel.handleKey(event)
             }
             return handled ? nil : event

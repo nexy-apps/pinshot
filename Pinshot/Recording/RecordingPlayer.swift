@@ -15,6 +15,18 @@ final class RecordingPlayer: NSObject, NSWindowDelegate {
     /// 浮かせて再生している録画（古い録画を削除するときに、再生中のものは残す）
     static var openURLs: Set<URL> { Set(players.map(\.model.url)) }
 
+    /// url の録画を浮かせていれば、その窓を前に出す（出したら true）
+    static func bringToFront(url: URL) -> Bool {
+        guard let player = players.first(where: { $0.model.url == url }) else { return false }
+        player.panel.makeKeyAndOrderFront(nil)
+        return true
+    }
+
+    /// url の録画を浮かせている窓を閉じる（履歴から録画を削除するとき）
+    static func close(url: URL) {
+        players.filter { $0.model.url == url }.forEach { $0.panel.close() }
+    }
+
     /// すべての窓を閉じる（録画をすべて削除するとき）
     static func closeAll() {
         players.forEach { $0.panel.close() }
@@ -168,49 +180,24 @@ final class RecordingPlayerModel: ObservableObject {
 
     /// ファイルとしてクリップボードに入れる（Finder・チャットなどに貼り付けられる）
     func copy() {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.writeObjects([url as NSURL])
+        RecordingActions.copyFiles([url])
         show("コピーしました（ファイルとして貼り付けられます）")
     }
 
     func saveMovie() {
-        ImageSaver.saveFile(copying: url, suggestedName: url.lastPathComponent, kind: .movie, onSaved: { [weak self] in
-            self?.show("保存しました")
-        })
+        RecordingActions.saveMovie(url) { [weak self] in self?.show("保存しました") }
     }
 
     /// GIF を作って保存する（作っている間は、進み具合を出す）
     func saveGIF() {
         guard gifProgress == nil else { return }
-        let name = (url.deletingPathExtension().lastPathComponent as NSString).appendingPathExtension("gif") ?? "Pinshot.gif"
         gifProgress = 0
-        let source = url
-        exportTask = Task { [weak self] in
-            do {
-                let temporary = try await GIFExporter.exportToTemporaryFile(videoAt: source) { value in
-                    self?.gifProgress = value
-                }
-                guard let self, !Task.isCancelled else {
-                    try? FileManager.default.removeItem(at: temporary)
-                    return
-                }
-                self.gifProgress = nil
-                // 保存し終えたら（やめたときも）、作った一時ファイルを片付ける
-                ImageSaver.saveFile(
-                    copying: temporary,
-                    suggestedName: name,
-                    kind: .gif,
-                    onSaved: { [weak self] in self?.show("GIF を保存しました") },
-                    onFinish: { try? FileManager.default.removeItem(at: temporary) }
-                )
-            } catch {
-                self?.gifProgress = nil
-                if !(error is CancellationError) {
-                    AppAlert.inform("GIF を作れませんでした", detail: error.localizedDescription)
-                }
-            }
-        }
+        exportTask = RecordingActions.saveGIF(
+            url,
+            progress: { [weak self] value in self?.gifProgress = value },
+            finished: { [weak self] in self?.gifProgress = nil },
+            onSaved: { [weak self] in self?.show("GIF を保存しました") }
+        )
     }
 
     /// GIF にして上げ、共有リンクをコピーする（上げる先は設定の「共有」）。
@@ -229,9 +216,9 @@ final class RecordingPlayerModel: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
-    /// 履歴のウィンドウを開く（浮かせた画像の操作バーの「履歴」と同じ）
+    /// 履歴のウィンドウの「録画」を開き、この録画を選ぶ（浮かせた画像の操作バーの「履歴」と同じ考え方）
     func openHistory() {
-        CaptureHistoryWindowController.shared.show()
+        CaptureHistoryWindowController.shared.show(tab: .recordings, selectingRecording: url)
     }
 
     /// 右クリックのメニュー（操作バーと同じ操作を、同じまとまりで並べる）
@@ -362,7 +349,7 @@ private struct RecordingPlayerView: View {
             QuickActionButton(symbol: "folder", help: "Finder で表示", action: model.revealInFinder)
             QuickActionDivider()
             // 浮かせた画像の操作バーと同じく、右端に履歴を置く
-            QuickActionButton(symbol: "clock.arrow.circlepath", help: "履歴（撮った画像・読み取った文字・上げたもの）", action: model.openHistory)
+            QuickActionButton(symbol: "clock.arrow.circlepath", help: "履歴（録画の一覧を開き、この録画を選ぶ）", action: model.openHistory)
         }
         .quickActionBarBackground()
         // 台の何もない所（縁まで）をドラッグしても、窓ごと動く（ボタン・つまみは、その上で押せる）

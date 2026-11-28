@@ -429,3 +429,54 @@ final class SaveLocationTests: XCTestCase {
         XCTAssertEqual(SaveLocation.folder(base: base, kind: .image, byKind: false, byMonth: true, date: date, calendar: calendar).path, "/Users/me/Desktop/2026-03")
     }
 }
+
+/// 履歴のウィンドウの「録画」の一覧の決まり
+final class RecordingHistoryTests: XCTestCase {
+    private func file(_ name: String, minute: Int, bytes: Int64 = 100) -> RecordingFile {
+        RecordingFile(
+            url: URL(fileURLWithPath: "/tmp/Recordings/\(name)"),
+            date: Date(timeIntervalSince1970: 1_795_000_000 + TimeInterval(minute * 60)),
+            bytes: bytes
+        )
+    }
+
+    func testEntriesAreNewestFirst() {
+        var ids: [String: UUID] = [:]
+        let entries = RecordingRules.historyEntries(from: [file("a.mp4", minute: 1), file("b.mp4", minute: 3), file("c.mp4", minute: 2)], ids: &ids)
+        XCTAssertEqual(entries.map(\.name), ["b.mp4", "c.mp4", "a.mp4"])
+    }
+
+    func testIDsStayTheSameWhenCountedAgain() {
+        // 数え直しても、同じファイルの ID は変わらない（選んでいるものが外れないように）
+        var ids: [String: UUID] = [:]
+        let first = RecordingRules.historyEntries(from: [file("a.mp4", minute: 1), file("b.mp4", minute: 2)], ids: &ids)
+        let second = RecordingRules.historyEntries(from: [file("a.mp4", minute: 1), file("b.mp4", minute: 2), file("c.mp4", minute: 3)], ids: &ids)
+        XCTAssertEqual(second.first { $0.name == "a.mp4" }?.id, first.first { $0.name == "a.mp4" }?.id)
+        XCTAssertEqual(second.first { $0.name == "b.mp4" }?.id, first.first { $0.name == "b.mp4" }?.id)
+        XCTAssertEqual(Set(second.map(\.id)).count, 3)
+    }
+
+    func testRemovedFilesAreForgotten() {
+        // なくなったファイルの ID は覚えておかない（増え続けないように）
+        var ids: [String: UUID] = [:]
+        _ = RecordingRules.historyEntries(from: [file("a.mp4", minute: 1), file("b.mp4", minute: 2)], ids: &ids)
+        _ = RecordingRules.historyEntries(from: [file("b.mp4", minute: 2)], ids: &ids)
+        XCTAssertEqual(Set(ids.keys), ["b.mp4"])
+    }
+
+    func testUploadedGIFIsFoundBySourceName() {
+        // 上げたものの履歴は、元の録画のファイル名で、一覧の 1 本と結び付く
+        var ids: [String: UUID] = [:]
+        let entry = RecordingRules.historyEntries(from: [file("Pinshot 録画 2026-11-28 19.35.45.mp4", minute: 1)], ids: &ids)[0]
+        let upload = UploadHistoryEntry(
+            id: UUID(),
+            date: Date(),
+            remote: RemoteFile(destination: .gyazo, id: "abc", info: [:]),
+            link: SharedLink(pageURL: URL(string: "https://gyazo.com/abc")!, directURL: nil),
+            kind: .gif,
+            fileName: "Pinshot.gif",
+            sourceName: entry.name
+        )
+        XCTAssertEqual(UploadHistoryRules.latest(forSource: entry.name, destination: .gyazo, in: [upload])?.id, upload.id)
+    }
+}

@@ -6,6 +6,8 @@ enum HistoryTab: String, CaseIterable, Identifiable {
     case images
     /// 読み取った文字
     case texts
+    /// 録画（アプリの中に残している MP4）
+    case recordings
     /// 上げたもの（共有リンク）
     case uploads
 
@@ -15,6 +17,7 @@ enum HistoryTab: String, CaseIterable, Identifiable {
         switch self {
         case .images: "画像"
         case .texts: "文字"
+        case .recordings: "録画"
         case .uploads: "共有"
         }
     }
@@ -23,6 +26,7 @@ enum HistoryTab: String, CaseIterable, Identifiable {
         switch self {
         case .images: "photo.on.rectangle"
         case .texts: "text.viewfinder"
+        case .recordings: "record.circle"
         case .uploads: "link"
         }
     }
@@ -34,15 +38,17 @@ final class HistoryWindowState: ObservableObject {
     @Published var tab: HistoryTab = .images
 }
 
-/// 履歴のウィンドウの中身。上の帯で「画像 / 文字 / 共有」を切り替える
+/// 履歴のウィンドウの中身。上の帯で「画像 / 文字 / 録画 / 共有」を切り替える
 struct HistoryWindowView: View {
     @ObservedObject var state: HistoryWindowState
     let notice: HistoryNotice
     @ObservedObject var imageModel: CaptureHistoryViewModel
     @ObservedObject var textModel: TextHistoryViewModel
+    @ObservedObject var recordingModel: RecordingHistoryViewModel
     @ObservedObject var uploadModel: UploadHistoryViewModel
     @ObservedObject var images = CaptureHistory.shared
     @ObservedObject var texts = TextHistory.shared
+    @ObservedObject var recordings = RecordingStore.shared
     @ObservedObject var uploads = UploadHistory.shared
     @ObservedObject var settings = AppSettings.shared
 
@@ -53,6 +59,7 @@ struct HistoryWindowView: View {
             switch state.tab {
             case .images: CaptureHistoryView(history: images, model: imageModel)
             case .texts: TextHistoryView(history: texts, model: textModel)
+            case .recordings: RecordingHistoryView(store: recordings, model: recordingModel)
             case .uploads: UploadHistoryView(history: uploads, model: uploadModel)
             }
         }
@@ -83,6 +90,8 @@ struct HistoryWindowView: View {
                         .frame(maxWidth: 200)
                     layoutPicker($settings.textHistoryLayout)
                 }
+            case .recordings:
+                if !recordings.entries.isEmpty { layoutPicker($settings.recordingHistoryLayout) }
             case .uploads:
                 if !uploads.entries.isEmpty { layoutPicker($settings.uploadHistoryLayout) }
             }
@@ -95,11 +104,12 @@ struct HistoryWindowView: View {
         switch tab {
         case .images: images.entries.count
         case .texts: texts.entries.count
+        case .recordings: recordings.entries.count
         case .uploads: uploads.entries.count
         }
     }
 
-    /// 一覧の表示方法の切り替え（画像・文字・共有）
+    /// 一覧の表示方法の切り替え（画像・文字・録画・共有）
     private func layoutPicker<Layout: HistoryLayoutOption>(_ selection: Binding<Layout>) -> some View {
         HStack(spacing: 8) {
             Text(selection.wrappedValue.label)
