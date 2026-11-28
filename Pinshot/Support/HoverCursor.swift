@@ -58,6 +58,43 @@ extension View {
             case .ended: HoverCursor.left(restoring: exit)
             }
         }
+        // macOS も、マウスが動くたびに、ウィンドウのカーソルの範囲（cursor rect）に従ってカーソルを出し直す（範囲のない所は矢印）。
+        // 上の出し直しだけだと、それと毎回取り合ってちらつくので、同じカーソルの範囲を部品の上に置いて、両方をそろえる
+        .overlay(CursorRectArea(cursor: role.cursor))
+    }
+}
+
+/// 部品の範囲に、AppKit のカーソルの範囲を置く（クリックやドラッグは、下の部品にそのまま通す）
+private struct CursorRectArea: NSViewRepresentable {
+    let cursor: NSCursor
+
+    func makeNSView(context: Context) -> CursorRectView {
+        let view = CursorRectView()
+        view.cursor = cursor
+        return view
+    }
+
+    func updateNSView(_ view: CursorRectView, context: Context) {
+        guard view.cursor !== cursor else { return }
+        view.cursor = cursor
+        view.window?.invalidateCursorRects(for: view)
+    }
+}
+
+/// カーソルの範囲だけを持つビュー（マウスは受け取らない）
+final class CursorRectView: NSView {
+    var cursor: NSCursor = .arrow
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: cursor)
+    }
+
+    // 大きさが変わったら、範囲を置き直す
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        window?.invalidateCursorRects(for: self)
     }
 }
 
