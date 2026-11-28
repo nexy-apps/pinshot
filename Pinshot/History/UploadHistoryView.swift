@@ -115,6 +115,8 @@ private struct UploadHistoryCell: View {
         HistoryGridThumbnail(image: model.thumbnail(for: entry), compact: compact, isSelected: isSelected, isHovered: isHovered) {
             UploadItemButtons(entry: entry, model: model, onImage: true)
         }
+        // 画像か GIF か（乗せたときのボタンは右に出るので、左下に置く）
+        .overlay(alignment: .bottomLeading) { UploadKindBadge(kind: entry.kind).padding(6) }
     }
 }
 
@@ -132,6 +134,9 @@ private struct UploadHistoryRow: View {
             Text(CaptureHistoryRules.timeText(entry.date))
                 .font(.body.monospacedDigit())
                 .frame(width: 48, alignment: .leading)
+            // 画像か GIF か（幅をそろえて、リンクの書き出しが行ごとにずれないようにする）
+            UploadKindBadge(kind: entry.kind, onImage: false)
+                .frame(width: 36, alignment: .leading)
             Text(entry.link.pageURL.absoluteString)
                 .font(.callout.monospaced())
                 .foregroundStyle(.secondary)
@@ -148,6 +153,17 @@ private struct UploadHistoryRow: View {
         .padding(.vertical, 5)
         .historyRowBackground(isSelected: isSelected, isHovered: isHovered)
         .modifier(UploadItemInteractions(entry: entry, model: model))
+    }
+}
+
+/// 上げたものの種類の印（「PNG」「GIF」。画像と、録画から作った GIF を見分ける）
+private struct UploadKindBadge: View {
+    let kind: ExportKind
+    var onImage = true
+
+    var body: some View {
+        HistoryBadge(onImage: onImage) { Text(kind.badgeLabel) }
+            .help(kind == .gif ? "GIF（録画から作って上げたもの）" : kind.label)
     }
 }
 

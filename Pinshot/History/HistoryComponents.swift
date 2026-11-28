@@ -75,6 +75,22 @@ struct HistoryThumbnail: View {
     }
 }
 
+/// 縮小画像の隅や行に出す小さな印（「GIF」「PNG」・録画の長さなど）。録画・上げたものの一覧で同じ見た目にする。
+/// onImage は縮小画像の上に重ねるとき（黒い台に白い文字）。false は行の中に置くとき（うすい台に灰色の文字）
+struct HistoryBadge<Content: View>: View {
+    var onImage = true
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(onImage ? Color.white : Color.secondary)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(onImage ? Color.black.opacity(0.55) : Color.primary.opacity(0.08)))
+    }
+}
+
 /// サムネイルで並べるときの 1 件の縮小画像（枠・選んでいる印・乗せている間のボタン）。
 /// 撮った画像の一覧と、上げたものの一覧で同じ見た目にする。compact は小さいサムネイル
 struct HistoryGridThumbnail<Buttons: View>: View {

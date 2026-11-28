@@ -66,7 +66,7 @@ Pinshot/
 │   ├── TextHistoryViewModel・TextHistoryView  文字の一覧と右の全文の欄（探す・複数選択・コピー・消す・直す・読み取った画像を浮かせる）
 │   ├── RecordingHistoryViewModel・RecordingHistoryView  録画の一覧（撮った画像と同じ 3 つの表示・複数選択・浮かせて再生・コピー・GIF にして上げる（上げてあれば前のリンク）・保存・消す）。一覧のファイルは持たず、RecordingStore がフォルダの中身から作る。上げた GIF とは、上げたものの履歴の sourceName（元の録画のファイル名）で結び付けて印を出す
 │   ├── UploadHistoryViewModel・UploadHistoryView  上げたものの一覧（撮った画像と同じ 3 つの表示・複数選択・リンクをコピー・ブラウザで開く・Gyazo からも削除）
-│   ├── HistoryComponents     画像・文字・共有の一覧で同じ部品（日付ごとの並べ方（サムネイル・リスト）・日付の見出し・空のときの案内・小さな画像・サムネイルの 1 件と列・行の背景・乗せたときのボタン・下の帯）
+│   ├── HistoryComponents     画像・文字・共有の一覧で同じ部品（日付ごとの並べ方（サムネイル・リスト）・日付の見出し・空のときの案内・小さな画像・サムネイルの 1 件と列・行の背景・乗せたときのボタン・「GIF」「PNG」や長さの印・下の帯）
 │   └── HistoryNotice         一覧の下に出す短い知らせ（「コピーしました」など。アップロードの途中は消さずに出す）
 ├── Editor/         書き込みのデータ、描画、書き出し
 │   ├── Annotation・AnnotationStyles・Tool・ToolGroup・RGBAColor   書き込みのデータ（Windows 版と形式をそろえる）と、ツールの組
