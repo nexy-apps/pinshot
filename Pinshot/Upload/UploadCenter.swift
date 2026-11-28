@@ -47,12 +47,20 @@ final class UploadCenter {
     /// 録画を GIF にして上げ、共有リンクをコピーする（浮かせた録画の窓から）。
     /// 上げる先の大きさの上限は分からないので、Pinshot の上限（UploadRules.gifMaxBytes）を超えたら、
     /// 小さい作り方（RecordingRules.gifUploadSteps）で作り直す。上げる先に「大きすぎる」と断られたときも、小さくして上げ直す。
-    /// いちばん小さくしても上げられなければ、そう知らせる。notify には、進み具合と結果を渡す（最後はいつも finished）
+    /// いちばん小さくしても上げられなければ、そう知らせる。notify には、進み具合と結果を渡す（最後はいつも finished）。
+    /// 録画は中身が変わらないので、同じ録画をもう同じ上げる先に上げていれば、作り直さずに、そのときのリンクをコピーする
+    /// （上げる先から消したものは、上げたものの履歴からも外れるので、また上げる）
     func shareGIF(fromMovieAt movieURL: URL, notify: @escaping (UploadStatus) -> Void) {
         Task {
             // GIF を作るのは時間がかかるので、先に上げる先を選んでいて、つないでいるかを確かめる
             guard let destination = await readyDestination(automatic: false, notify: notify) else { return }
             let label = destination.id.label
+            let sourceName = movieURL.lastPathComponent
+            if let previous = UploadHistory.shared.latestEntry(forSource: sourceName, destination: destination.id) {
+                copy(UploadRules.clipboardText(for: previous.link, format: AppSettings.shared.shareLinkFormat))
+                notify(.finished("前に上げたリンクをコピーしました"))
+                return
+            }
             let thumbnail = await GIFExporter.firstFrame(of: movieURL)
             let steps = RecordingRules.gifUploadSteps
             var lastBytes = 0
@@ -75,7 +83,7 @@ final class UploadCenter {
                 guard UploadRules.fitsGIFUpload(bytes: data.count) else { continue }
                 let item = UploadItem(data: data, fileName: UploadRules.fileName(kind: .gif, date: Date()), kind: .gif)
                 // 上げる先に「大きすぎる」と断られたら、小さい作り方があれば作り直して上げ直す
-                if await run(item, thumbnail: thumbnail, automatic: false, retriesIfTooLarge: !isLast, notify: notify) == .tooLarge {
+                if await run(item, thumbnail: thumbnail, automatic: false, retriesIfTooLarge: !isLast, sourceName: sourceName, notify: notify) == .tooLarge {
                     continue
                 }
                 return
@@ -144,6 +152,7 @@ final class UploadCenter {
         thumbnail: CGImage?,
         automatic: Bool,
         retriesIfTooLarge: Bool = false,
+        sourceName: String? = nil,
         notify: @escaping (UploadStatus) -> Void
     ) async -> RunResult {
         guard let destination = await readyDestination(automatic: automatic, notify: notify) else { return .done }
@@ -174,7 +183,7 @@ final class UploadCenter {
             let link = try await destination.shareLink(for: file)
             let text = UploadRules.clipboardText(for: link, format: AppSettings.shared.shareLinkFormat)
             copy(text)
-            UploadHistory.shared.add(remote: file, link: link, kind: item.kind, fileName: item.fileName, thumbnail: thumbnail)
+            UploadHistory.shared.add(remote: file, link: link, kind: item.kind, fileName: item.fileName, thumbnail: thumbnail, sourceName: sourceName)
             notify(.finished("リンクをコピーしました"))
             UploadNotifier.shared.notify(title: "\(label) のリンクをコピーしました", body: text, link: link.pageURL)
         } catch UploadError.tooLarge where retriesIfTooLarge {
