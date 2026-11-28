@@ -69,6 +69,8 @@ struct CaptureHistoryView: View {
                 HistoryFooterButton(title: "コピー", symbol: "doc.on.doc") { model.copy(first) }
             }
             HistoryFooterButton(title: "保存…", symbol: "square.and.arrow.down") { model.save(selected) }
+            // 録画の一覧と同じく、削除の手前に Finder で表示を置く（履歴の画像のファイルを見せる）
+            HistoryFooterButton(title: "Finder", symbol: "folder") { model.revealInFinder(selected) }
             HistoryFooterButton(title: "削除", symbol: "trash", role: .destructive) { model.remove(selected) }
         }
     }
