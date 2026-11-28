@@ -11,6 +11,10 @@ final class RecordingStore: ObservableObject {
     /// いま残している本数と、容量の合計（バイト）
     @Published private(set) var count = 0
     @Published private(set) var totalBytes: Int64 = 0
+    /// 残している録画（新しい順。履歴のウィンドウの「録画」に並べる）
+    @Published private(set) var entries: [RecordingHistoryEntry] = []
+    /// 一覧の 1 本ごとの ID（ファイル名ごとに 1 つ。数え直しても変えず、選んでいるものが外れないようにする）
+    private var ids: [String: UUID] = [:]
 
     let folder = AppFolders.recordings
     private var cancellables = Set<AnyCancellable>()
@@ -57,6 +61,25 @@ final class RecordingStore: ObservableObject {
         recount()
     }
 
+    /// フォルダの中身を数え直す（履歴のウィンドウを開いたとき。Finder で消したものも一覧から外れる）
+    func refresh() {
+        recount()
+    }
+
+    /// url の録画の、一覧の 1 本（なければ nil）
+    func entry(for url: URL) -> RecordingHistoryEntry? {
+        entries.first { $0.url.standardizedFileURL == url.standardizedFileURL }
+    }
+
+    /// 選んだ録画を削除する（浮かせて再生している窓も閉じる）
+    func remove(_ targets: [RecordingHistoryEntry]) {
+        for entry in targets {
+            RecordingPlayer.close(url: entry.url)
+            try? FileManager.default.removeItem(at: entry.url)
+        }
+        recount()
+    }
+
     /// すべての録画を削除する（浮かせて再生している窓も閉じる）
     func removeAll() {
         RecordingPlayer.closeAll()
@@ -93,5 +116,8 @@ final class RecordingStore: ObservableObject {
         let files = recordings()
         count = files.count
         totalBytes = files.reduce(0) { $0 + $1.bytes }
+        let list = RecordingRules.historyEntries(from: files, ids: &ids)
+        if list != entries { entries = list }
     }
 }
+

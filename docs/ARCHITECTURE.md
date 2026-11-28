@@ -26,8 +26,9 @@ Pinshot/
 │   ├── RecordingRules        録画の決まり（大きさを偶数に・座標・時間の表示・ファイル名・GIF のコマ数と大きさ・古い録画の整理・録画の音の選択肢 RecordingAudio。テストあり）
 │   ├── ScreenRecorder        画面（と Mac の音・マイクの音）を受け取って MP4 に書く（ScreenCaptureKit の SCStream → AVAssetWriter。両方の音のときは、止めたあとに AudioMixdown で 1 本に混ぜる）
 │   ├── RecordingController   録画を始める・止める入口（赤い点線の枠・操作パネル・上限）
-│   ├── RecordingStore        アプリの中に残す録画（期間・数・容量の上限で古いものを削除・本数と容量）
-│   ├── RecordingPlayer       録画を浮かせてくり返し再生する窓（見た目は浮かせた画像にそろえる：左上の外の ×・下の操作バーと左端の ✙。再生・一時停止・位置のつまみ・音を出す / 消す | コピー・GIF にして上げる | MP4 / GIF で保存・Finder で表示）
+│   ├── RecordingStore        アプリの中に残す録画（期間・数・容量の上限で古いものを削除・本数と容量・履歴のウィンドウの「録画」に並べる一覧）
+│   ├── RecordingActions      録画のファイルへの操作（コピー・MP4 / GIF で保存・大きさと長さ・履歴から浮かせる。録画の窓と録画の一覧で同じものを使う）
+│   ├── RecordingPlayer       録画を浮かせてくり返し再生する窓（見た目は浮かせた画像にそろえる：左上の外の ×・下の操作バーと左端の ✙。再生・一時停止・位置のつまみ・音を出す / 消す | コピー・GIF にして上げる | MP4 / GIF で保存・Finder で表示 | 履歴（録画の一覧でこの録画を選ぶ））
 │   ├── MicrophoneCapture     マイクの音を受け取る（AVCaptureSession。時刻を画面のコマと同じホストの時計に直す）
 │   ├── AudioMixdown          Mac の音とマイクの 2 本の音を 1 本に混ぜて書き直す（映像はそのまま。テストあり）
 │   ├── GIFExporter           録画から GIF を作る（テストあり）
@@ -54,14 +55,15 @@ Pinshot/
 │   ├── UploadHTTP・UploadNotifier  通信と返事の番号の読み替え・送った割合、macOS の通知
 │   ├── Destinations/GyazoDestination  Gyazo（利用者が貼ったアクセストークンで上げる・消す）
 │   └── OAuth/                OAuth 2.0 の共通の部品（PKCE・ログインの画面・localhost の受け口・許可証の取り直し・キーチェーン）。いまは使う保存先がないが、ほかの保存先を足すときに使う（テストあり）
-├── History/        撮った画像・読み取った文字・上げたものの履歴
+├── History/        撮った画像・読み取った文字・録画・上げたものの履歴
 │   ├── CaptureHistoryEntry   履歴の 1 枚と、残し方（期間・数）・日付ごとのまとめ方・表示の文字の決まり（テストあり）。期間と日付は文字の履歴にも使う
 │   ├── CaptureHistory        画像の履歴の保存と読み込み（~/Library/Application Support/Pinshot/History に PNG・縮小画像・一覧の JSON）
 │   ├── TextHistoryEntry・TextHistory  読み取った文字の履歴の 1 件と決まり（同じ文字はまとめる・探す。テストあり）と、その保存（同じフォルダに texts.json と、読み取った範囲の画像）
 │   ├── ListSelection         一覧の選び方（クリック・⌘・shift・⌘A・矢印）と、キー操作の決まり（ListKeys）。画像・文字・共有の一覧で同じ（テストあり）
-│   ├── CaptureHistoryWindowController・HistoryWindowView  履歴のウィンドウ（開くときに編集中の画像の編集を終える・キー操作の振り分け）と、その中身（上の「画像 / 文字 / 共有」の切り替え・表示方法・探す欄）
+│   ├── CaptureHistoryWindowController・HistoryWindowView  履歴のウィンドウ（開くときに編集中の画像の編集を終える・キー操作の振り分け）と、その中身（上の「画像 / 文字 / 録画 / 共有」の切り替え・表示方法・探す欄）
 │   ├── CaptureHistoryViewModel・CaptureHistoryView  画像の一覧（複数選択・浮かせる・コピー・保存・消す）
 │   ├── TextHistoryViewModel・TextHistoryView  文字の一覧と右の全文の欄（探す・複数選択・コピー・消す・直す・読み取った画像を浮かせる）
+│   ├── RecordingHistoryViewModel・RecordingHistoryView  録画の一覧（撮った画像と同じ 3 つの表示・複数選択・浮かせて再生・コピー・GIF にして上げる（上げてあれば前のリンク）・保存・消す）。一覧のファイルは持たず、RecordingStore がフォルダの中身から作る。上げた GIF とは、上げたものの履歴の sourceName（元の録画のファイル名）で結び付けて印を出す
 │   ├── UploadHistoryViewModel・UploadHistoryView  上げたものの一覧（撮った画像と同じ 3 つの表示・複数選択・リンクをコピー・ブラウザで開く・Gyazo からも削除）
 │   ├── HistoryComponents     画像・文字・共有の一覧で同じ部品（日付ごとの並べ方（サムネイル・リスト）・日付の見出し・空のときの案内・小さな画像・サムネイルの 1 件と列・行の背景・乗せたときのボタン・下の帯）
 │   └── HistoryNotice         一覧の下に出す短い知らせ（「コピーしました」など。アップロードの途中は消さずに出す）

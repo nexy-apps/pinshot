@@ -93,6 +93,7 @@ final class AppSettings: ObservableObject {
         static let historyLayout = "settings.historyLayout"
         static let textHistoryLayout = "settings.textHistoryLayout"
         static let uploadHistoryLayout = "settings.uploadHistoryLayout"
+        static let recordingHistoryLayout = "settings.recordingHistoryLayout"
         static let restorePins = "settings.restorePins"
         static let textPopoverClosesOnOutsideClick = "settings.textPopoverClosesOnOutsideClick"
         static let uploadDestination = "settings.uploadDestination"
@@ -192,6 +193,11 @@ final class AppSettings: ObservableObject {
     /// 上げたもの（共有リンク）の一覧の表示方法（撮った画像の一覧と同じ 3 つ）
     @Published var uploadHistoryLayout: HistoryLayout {
         didSet { defaults.set(uploadHistoryLayout.rawValue, forKey: Key.uploadHistoryLayout) }
+    }
+
+    /// 録画の一覧の表示方法（撮った画像の一覧と同じ 3 つ）
+    @Published var recordingHistoryLayout: HistoryLayout {
+        didSet { defaults.set(recordingHistoryLayout.rawValue, forKey: Key.recordingHistoryLayout) }
     }
 
     /// 終了・再起動のあとも、浮かせていた画像と閉じた画像を戻す
@@ -367,6 +373,7 @@ final class AppSettings: ObservableObject {
         historyLayout = defaults.option(Key.historyLayout, default: .largeGrid)
         textHistoryLayout = defaults.option(Key.textHistoryLayout, default: .standard)
         uploadHistoryLayout = defaults.option(Key.uploadHistoryLayout, default: .largeGrid)
+        recordingHistoryLayout = defaults.option(Key.recordingHistoryLayout, default: .largeGrid)
         restorePins = defaults.bool(Key.restorePins, default: true)
         textPopoverClosesOnOutsideClick = defaults.bool(Key.textPopoverClosesOnOutsideClick, default: false)
         let destination = (defaults.string(forKey: Key.uploadDestination)).flatMap(UploadDestinationID.init(rawValue:))

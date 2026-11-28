@@ -75,6 +75,21 @@ enum RecordingRules {
     static func summaryText(count: Int, bytes: Int64) -> String {
         count == 0 ? "なし" : "\(count) 本・\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))"
     }
+
+    /// フォルダの中の録画から、一覧の 1 本ずつを作る（新しい順）。ID はファイル名ごとに ids に覚え、数え直しても変えない
+    /// （選んでいるものが外れないように）。なくなったファイルの ID は ids から外す
+    static func historyEntries(from files: [RecordingFile], ids: inout [String: UUID]) -> [RecordingHistoryEntry] {
+        var known = ids
+        let list = files.sorted { $0.date > $1.date }.map { file -> RecordingHistoryEntry in
+            let name = file.url.lastPathComponent
+            let id = known[name] ?? UUID()
+            known[name] = id
+            return RecordingHistoryEntry(id: id, url: file.url, date: file.date, bytes: file.bytes)
+        }
+        let names = Set(list.map(\.name))
+        ids = known.filter { names.contains($0.key) }
+        return list
+    }
 }
 
 /// 録画に入れる音（範囲を選ぶ画面の下のバー・メニューバーの「録画の音」で選ぶ。選んだものは次の録画でも使う）
@@ -151,6 +166,18 @@ struct GIFSettings: Equatable {
     func framesPerSecond(duration: TimeInterval) -> Double {
         RecordingRules.gifFramesPerSecond(duration: duration, preferred: framesPerSecond, maxFrames: maxFrames)
     }
+}
+
+/// 履歴のウィンドウの「録画」の 1 本（録画のファイルそのものを指す。一覧のファイルは持たず、フォルダの中身から作る）
+struct RecordingHistoryEntry: HistoryItem, Equatable {
+    var id: UUID
+    var url: URL
+    /// 録った日時（ファイルを作った日時）
+    var date: Date
+    var bytes: Int64
+
+    /// ファイル名（上げたものの履歴は、これで元の録画を覚えている）
+    var name: String { url.lastPathComponent }
 }
 
 /// アプリの中に残している録画のファイル 1 つ（場所・作った日時・大きさ）
