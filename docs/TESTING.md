@@ -11,6 +11,8 @@
 
 ### 更新を通しで試す
 
+手元で作った試験用アプリではなく、配っている製品版どうしで試すときは、`make install-release TAG=<前の版のタグ>`（例: `TAG=v0.1.1-beta.1`）で前の版の製品版を入れ、開いて、アプリの中から最新版に更新できるかを確かめます（入れ直すときは `make install-release`）。
+
 リリースの前や、更新まわり（Sparkle の版・署名・証明書）を変えたときに、手元で実際に入れ替えて確かめます。いちばん確かめたいのは、同じ証明書で署名した版どうしなら、更新しても画面収録・アクセシビリティの許可が外れないことです（配る版はどの版も `nexy Release Signing` で署名します。試験用アプリは、同じ形を開発用の証明書 `nexy Dev Signing` で試します）。
 
 ふだんの Pinshot とは別の ID（`app.nexy.Pinshot.updatetest`）・別の名前（画面では「Pinshot UpdateTest」、アプリのファイルは `PinshotUpdateTest.app`）・別のデータのフォルダ（`~/Library/Application Support/PinshotUpdateTest`）の試験用アプリを使うので、ふだんの Pinshot の許可・設定・履歴・浮かせた画像・Gyazo の許可証には触れません。更新ファイルの署名の鍵もその場で作るので、金庫がなくても試せます（`ADHOC=1` を付けると、アドホック署名で試せる）。

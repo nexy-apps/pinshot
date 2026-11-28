@@ -89,8 +89,10 @@ APPCAST_FILE := pinshot/appcast.xml
 # 更新の試験で、新しい版を配る手元のサーバーのポート（Pin シリーズの試験どうしでぶつからないよう、Pinshelf は 8765、Pinstage は 8767）。
 # ほかで使っているときは make update-test UPDATE_TEST_PORT=8800 のように替える
 UPDATE_TEST_PORT ?= 8766
+# make install-release で入れる製品版のタグ（例: v0.1.1-beta.1。なければ、いちばん新しいリリース（β 版も含む））
+TAG ?=
 
-.PHONY: generate build release install install-build uninstall dist dist-in-vault publish publish-in-vault appcast-site \
+.PHONY: generate build release install install-build install-release uninstall dist dist-in-vault publish publish-in-vault appcast-site \
 	test run stop clean cert setup icon readme-images sparkle dev-signing update-test update-test-log
 
 # アイコンを描くスクリプトをビルドする場所
@@ -233,6 +235,13 @@ update-test: generate dev-signing
 # いつからの記録かは SINCE="2026-11-26 19:50:00" のように渡す（なければ、直近 30 分）
 update-test-log:
 	./scripts/update-test-log.sh
+
+# 製品版（GitHub の Releases に置いた本物）を落として、/Applications/Pinshot.app に入れる（金庫は要らない。GitHub CLI を使う）。
+# 何も付けなければ、いちばん新しいリリース（β 版も含む）。TAG=v0.1.1-beta.1 のように付ければ、その版
+# （前の版を入れて、アプリの中から更新できるかを試すとき）。入れる前に、SHA-256 と製品版の証明書（指紋）を確かめる。
+# 動いている製品版は終了し、前の版はゴミ箱に入れる（開発版の Pinshot Dev には触れない）
+install-release:
+	./scripts/install-release.sh "$(GITHUB_REPO)" "$(RELEASE_SIGN_IDENTITY)" "$(TAG)"
 
 # テストを動かす（アプリは起動しない）。テストも開発用の証明書で署名する（ADHOC=1 のときはアドホック署名）。
 # xcodebuild test は端末によっては動かないので、ビルドしてから xctest で直接動かす

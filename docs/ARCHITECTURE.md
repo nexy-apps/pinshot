@@ -108,6 +108,7 @@ PinshotTests/       画面に関係ない処理のテスト（make test）
 
 scripts/            ビルドと配る手順の道具（Makefile から使う）
 ├── create-signing-cert.sh   開発用の証明書（nexy Dev Signing）をログインキーチェーンに作る（make cert）
+├── install-release.sh       製品版を Releases から落として、SHA-256 と証明書を確かめてから入れる（make install-release）
 ├── vault.sh                 金庫を開けてコマンドを流し、必ず閉める（make dist・make publish）
 ├── signing-check.sh         配る版用の証明書が使えるか・アプリがその証明書で署名されたかを、指紋（SHA-1）で確かめる（make dist）
 ├── make-appcast.sh          更新ファイル（zip）に署名して、版の一覧（appcast.xml）を作る（make publish・make update-test）

@@ -153,6 +153,7 @@ make uninstall
 | `make build` | 開発用にビルドするだけ |
 | `make test` | テストを動かす（アプリは起動しない） |
 | `make install` | 配る版と同じ設定でビルドし、`make run` と同じ `/Applications/Pinshot Dev.app` に入れる（起動はしない。配る版に近い形で動きを確かめるときに。配る版の Pinshot とは別のアプリとして並ぶ） |
+| `make install-release` | 製品版（GitHub の Releases に置いた本物）を落として、`/Applications/Pinshot.app` に入れる（金庫は要らない。`gh` を使う）。何も付けなければいちばん新しいリリース（β 版も含む）、`TAG=v0.1.1-beta.1` を付ければその版（前の版から、アプリの中で更新できるかを試すとき）。入れる前に SHA-256 と製品版の証明書を確かめ、動いている製品版は終了し、前の版はゴミ箱に入れる |
 | `make uninstall` | `/Applications/Pinshot Dev.app` を削除する（`make run`・`make install` のどちらで入れたものも。設定・データ・許可は残る） |
 | `make dist` | Releases に置く DMG と zip（`dist/Pinshot-<版>.dmg`・`.zip`・`.sha256`）を作る（作者だけ。金庫を開けて、配る版用の証明書で署名する。パスワードを聞かれる） |
 | `make publish` | DMG と zip を作り、GitHub に Release（タグ `v<版>`）を作ってアップロードする（作者だけ）。β 版は `make publish BETA=1`（タグ `v<版>-beta.1`・プレリリース）。zip に金庫の中の鍵で署名し、版の一覧（`appcast.xml`）を作って、置き場所（[nexy-apps.github.io](https://github.com/nexy-apps/nexy-apps.github.io)）に送るまで行う（コミット済みで、GitHub の main と同じ状態からだけ動く） |
