@@ -235,7 +235,7 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(notifiesUploads, forKey: Key.notifiesUploads) }
     }
 
-    /// 撮ったらすぐクリップボードにもコピーする（録画は、止めたときに録画のファイルをコピーする）
+    /// 撮ったらすぐクリップボードにもコピーする（録画は、止めたときに録画のファイルをコピーする）。初期設定はオン（撮ってすぐ貼り付けられるように）
     @Published var copyAfterCapture: Bool {
         didSet { defaults.set(copyAfterCapture, forKey: Key.copyAfterCapture) }
     }
@@ -386,7 +386,7 @@ final class AppSettings: ObservableObject {
         autoUploadCaptures = savedAutoUpload && destination != nil
         if savedAutoUpload, destination == nil { defaults.set(false, forKey: Key.autoUploadCaptures) }
         notifiesUploads = defaults.bool(Key.notifiesUploads, default: true)
-        copyAfterCapture = defaults.bool(Key.copyAfterCapture, default: false)
+        copyAfterCapture = defaults.bool(Key.copyAfterCapture, default: true)
         showsQuickActions = defaults.bool(Key.showsQuickActions, default: true)
         alwaysOnTop = defaults.bool(Key.alwaysOnTop, default: true)
         detailedCaptureUI = defaults.bool(Key.detailedCaptureUI, default: false)
