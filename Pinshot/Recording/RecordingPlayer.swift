@@ -395,7 +395,7 @@ private struct RecordingPlayerView: View {
     private var actionRow: some View {
         HStack(spacing: 2) {
             // 録画そのものを渡す（コピー・保存）は、どちらも「印 + MP4 | GIF」の枠だけの台にそろえる。
-            // 上げて作る共有リンクだけは塗った台にして、見分けられるようにする
+            // 共有リンクも、同じ枠だけの台にそろえる（リンクの印と、上げる先の名前で見分ける）
             formatPair(
                 symbol: "doc.on.doc",
                 mp4: ("動画（MP4）をクリップボードにコピー（ファイルとして貼り付けられる）", model.copy),
@@ -466,7 +466,7 @@ private struct RecordingPlayerView: View {
         .hoverRole()
     }
 
-    /// 上げる先（Gyazo）に GIF を上げて、共有リンクをコピー（塗った台に、リンクの印と上げる先の名前。クリップボードへのコピーと見分けられるように）
+    /// 上げる先（Gyazo）に GIF を上げて、共有リンクをコピー（コピー・保存と同じ枠だけの台に、リンクの印と上げる先の名前）
     private var linkButton: some View {
         let label = UploadDestinations.current?.id.label ?? "リンク"
         return Button(action: model.uploadGIF) {
@@ -476,7 +476,7 @@ private struct RecordingPlayerView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 9)
                 .frame(height: 22)
-                .background(Capsule().fill(Color.accentColor.opacity(0.75)))
+                .background(Capsule().strokeBorder(Color.white.opacity(0.4)))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

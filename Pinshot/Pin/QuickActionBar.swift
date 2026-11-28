@@ -38,14 +38,13 @@ struct QuickActionBar: View {
                 .padding(.leading, 2)
 
             divider
-            // クリップボードに入れるもの（画像・共有リンク・文字）。貼り付けて使うことが多い順
+            // 画像を渡すもの。録画の窓の操作バーと同じ並び（コピー・保存・共有リンク）にし、画像だけの「文字をコピー」をその後ろに置く
             QuickActionButton(symbol: "doc.on.doc", help: "コピー（⌘C）", action: copy)
+            QuickActionButton(symbol: "square.and.arrow.down", help: "保存（⌘S）", action: save)
             QuickActionButton(symbol: "link", help: "\(UploadDestinations.current?.id.label ?? "上げる先") に上げ、共有リンクをコピー（⌘U。上げる先は設定の「共有」）", action: copyLink)
             QuickActionButton(symbol: "text.viewfinder", help: "文字をコピー（⇧⌘T）：画像の文字を読み取る。範囲を選ぶときは「…」から", action: copyText)
             divider
-            // ファイルにするもの（保存と、保存したものを見に行く）
-            QuickActionButton(symbol: "square.and.arrow.down", help: "保存（⌘S）", action: save)
-            // 保存した画像を見に行けるよう、保存先のフォルダを開く（どの画像からでも同じフォルダ）
+            // 保存した画像を見に行けるよう、保存先のフォルダを開く（どの画像からでも同じフォルダ。録画の窓の「Finder で表示」と同じ位置）
             QuickActionButton(symbol: "folder", help: "保存先のフォルダを Finder で開く", action: { ImageSaver.openSaveFolder() })
             divider
             QuickActionButton(symbol: "clock.arrow.circlepath", help: "履歴（撮った画像・読み取った文字・上げたもの）", action: history)
