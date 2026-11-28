@@ -337,8 +337,30 @@ private struct RecordingPlayerView: View {
             .onHover { model.isHoveringVideo = $0 }
     }
 
-    /// 下の操作バー（浮かせた画像の操作バーと同じ台・同じボタン）。台の何もない所をドラッグしても、窓ごと動く
+    /// 下の操作バー（浮かせた画像の操作バーと同じ色の台・同じボタン）。ボタンが多いので 2 行にする（1 行目は見る、2 行目は渡す）。
+    /// 台の何もない所をドラッグしても、窓ごと動く
     private var bar: some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        return VStack(alignment: .leading, spacing: 3) {
+            playbackRow
+            // 2 行の間のうすい線（台の端から端まで）
+            Rectangle()
+                .fill(Color.white.opacity(0.15))
+                .frame(height: 1)
+                .padding(.horizontal, 4)
+            actionRow
+        }
+        .padding(3)
+        .background(shape.fill(Color.black.opacity(0.6)))
+        .overlay(shape.strokeBorder(Color.white.opacity(0.25)))
+        // 2 行目（渡す操作）の長さに合わせ、1 行目は再生の位置のつまみを伸ばして同じ幅にする
+        .fixedSize()
+        // 台の何もない所（縁まで）をドラッグしても、窓ごと動く（ボタン・つまみは、その上で押せる）
+        .background(dragArea.clipShape(shape).hoverRole(.movable))
+    }
+
+    /// 1 行目（見る）: 動かすつまみ・再生 / 一時停止・時間・位置のつまみ・音
+    private var playbackRow: some View {
         HStack(spacing: 2) {
             moveHandle
             QuickActionDivider()
@@ -360,12 +382,18 @@ private struct RecordingPlayerView: View {
             )
             .controlSize(.mini)
             .tint(.white)
-            .frame(width: 120)
+            // 2 行目の幅まで伸ばす（短くても 120）
+            .frame(minWidth: 120, idealWidth: 120, maxWidth: .infinity)
             .padding(.horizontal, 4)
             .hoverHint("ドラッグで、見たい所へ動かす")
             .hoverRole()
             muteButton
-            QuickActionDivider()
+        }
+    }
+
+    /// 2 行目（渡す）: コピー（MP4 | GIF）・保存（MP4 | GIF）・共有リンク・Finder で表示・履歴
+    private var actionRow: some View {
+        HStack(spacing: 2) {
             // 録画そのものを渡す（コピー・保存）は、どちらも「印 + MP4 | GIF」の枠だけの台にそろえる。
             // 上げて作る共有リンクだけは塗った台にして、見分けられるようにする
             formatPair(
@@ -387,9 +415,6 @@ private struct RecordingPlayerView: View {
             // 浮かせた画像の操作バーと同じく、右端に履歴を置く
             QuickActionButton(symbol: "clock.arrow.circlepath", help: "履歴（録画の一覧を開き、この録画を選ぶ）", action: model.openHistory)
         }
-        .quickActionBarBackground()
-        // 台の何もない所（縁まで）をドラッグしても、窓ごと動く（ボタン・つまみは、その上で押せる）
-        .background(dragArea.clipShape(Capsule()).hoverRole(.movable))
     }
 
     /// 動かすつまみ ✙（浮かせた画像の操作バーと同じく、左端に置く）。動画の上・バーの何もない所をドラッグしても動く
