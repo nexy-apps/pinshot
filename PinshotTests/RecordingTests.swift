@@ -491,3 +491,11 @@ final class GIFMakingTextTests: XCTestCase {
         XCTAssertEqual(RecordingRules.gifMakingText(progress: -0.1), "GIF を作っています…（0%）")
     }
 }
+
+/// 録画から作る GIF のファイル名（保存するときと、クリップボードに入れるときで同じ）
+final class GIFFileNameTests: XCTestCase {
+    func testReplacesExtensionWithGIF() {
+        let url = URL(fileURLWithPath: "/tmp/Recordings/Pinshot 2026-11-28 10.00.00.mp4")
+        XCTAssertEqual(RecordingRules.gifFileName(forMovieAt: url), "Pinshot 2026-11-28 10.00.00.gif")
+    }
+}

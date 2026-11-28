@@ -59,7 +59,8 @@ Pinshot/
 │   ├── CaptureHistoryEntry   履歴の 1 枚と、残し方（期間・数）・日付ごとのまとめ方・表示の文字の決まり（テストあり）。期間と日付は文字の履歴にも使う
 │   ├── CaptureHistory        画像の履歴の保存と読み込み（~/Library/Application Support/Pinshot/History に PNG・縮小画像・一覧の JSON）
 │   ├── TextHistoryEntry・TextHistory  読み取った文字の履歴の 1 件と決まり（同じ文字はまとめる・探す。テストあり）と、その保存（同じフォルダに texts.json と、読み取った範囲の画像）
-│   ├── ListSelection         一覧の選び方（クリック・⌘・shift・⌘A・矢印）と、キー操作の決まり（ListKeys）。画像・文字・共有の一覧で同じ（テストあり）
+│   ├── ListSelection         一覧の選び方（クリック・⌘・shift・⌘A・矢印）と、キー操作の決まり（ListKeys）。画像・文字・録画・共有の一覧で同じ（テストあり）
+│   ├── HistoryListModel      一覧のモデルに共通の選び方と操作の対象の決め方（選んでいるもの・クリック・⌘A・esc・矢印・キー操作の振り分け）。画像・文字・録画・共有の一覧のモデルが従う
 │   ├── CaptureHistoryWindowController・HistoryWindowView  履歴のウィンドウ（開くときに編集中の画像の編集を終える・キー操作の振り分け）と、その中身（上の「画像 / 文字 / 録画 / 共有」の切り替え・表示方法・探す欄）
 │   ├── CaptureHistoryViewModel・CaptureHistoryView  画像の一覧（複数選択・浮かせる・コピー・保存・消す）
 │   ├── TextHistoryViewModel・TextHistoryView  文字の一覧と右の全文の欄（探す・複数選択・コピー・消す・直す・読み取った画像を浮かせる）

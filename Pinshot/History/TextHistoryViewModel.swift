@@ -3,7 +3,7 @@ import AppKit
 /// 読み取った文字の一覧の選択と操作（コピー・消す・探す・直す）。
 /// 選んでいるものがあるときは、選んでいるものすべてに対して行う。1 件だけ選んでいるときは、右の欄で直せる
 @MainActor
-final class TextHistoryViewModel: ObservableObject {
+final class TextHistoryViewModel: ObservableObject, HistoryListModel {
     let history: TextHistory
     /// 選んでいる履歴
     @Published private(set) var selection = ListSelection() {
@@ -41,38 +41,18 @@ final class TextHistoryViewModel: ObservableObject {
         TextHistoryRules.filtered(history.entries, query: query)
     }
 
-    /// 選んでいる履歴（新しい順。絞って見えなくなったものは除く）
-    var selectedEntries: [RecognizedTextEntry] {
-        visibleEntries.filter { selection.contains($0.id) }
-    }
+    /// 選ぶ範囲・選んでいるものは、一覧に出しているもの（絞って見えなくなったものは除く）
+    var listedEntries: [RecognizedTextEntry] { visibleEntries }
 
-    /// entry に対する操作の対象（entry を選んでいれば、選んでいるものすべて。そうでなければ entry だけ）
-    func targets(for entry: RecognizedTextEntry) -> [RecognizedTextEntry] {
-        selection.contains(entry.id) ? selectedEntries : [entry]
-    }
-
-    // MARK: - 選ぶ
-
-    private var order: [UUID] { visibleEntries.map(\.id) }
-
-    /// クリックで選ぶ（⌘ で足す・外す、shift で起点からの範囲）
-    func click(_ entry: RecognizedTextEntry, modifiers: NSEvent.ModifierFlags) {
-        selection.click(entry.id, command: modifiers.contains(.command), shift: modifiers.contains(.shift), order: order)
-    }
-
-    func selectAll() {
-        selection.selectAll(order)
-    }
-
-    func clearSelection() {
-        selection.clear()
+    func updateSelection(_ change: (inout ListSelection) -> Void) {
+        change(&selection)
     }
 
     /// 探す文字を空にして、その 1 件だけを選ぶ（吹き出しの「履歴で見る」から）
     func reveal(_ id: UUID) {
         query = ""
-        selection.clear()
-        selection.click(id, command: false, shift: false, order: order)
+        clearSelection()
+        selectOnly(id)
     }
 
     // MARK: - 直す（吹き出しと同じく、「更新してコピー」で保存する）
@@ -192,25 +172,15 @@ final class TextHistoryViewModel: ObservableObject {
 
     // MARK: - キー
 
-    /// 一覧のキー操作。扱ったら true（どのキーで何をするかは ListKeys。縦に並べるので ↑ ↓ で動かす）
+    /// 一覧のキー操作。扱ったら true（縦に並べるので ↑ ↓ で動かす。return も ⌘C もコピー）
     func handleKey(_ event: NSEvent) -> Bool {
-        guard let action = ListKeys.action(for: event, horizontal: false, vertical: true) else { return false }
-        let selected = selectedEntries
-        switch action {
-        case .selectAll:
-            selectAll()
-        case .move(let step, let extending):
-            selection.move(by: step, extending: extending, order: order)
-        case .clearSelection:
-            guard !selection.isEmpty else { return false }
-            clearSelection()
-        case .remove:
-            guard !selected.isEmpty else { return false }
-            remove(selected)
-        case .activate, .copy:
-            guard !selected.isEmpty else { return false }
-            copy(selected)
-        }
-        return true
+        handleListKey(
+            event,
+            horizontal: false,
+            vertical: true,
+            remove: { self.remove($0) },
+            activate: { self.copy($0) },
+            copy: { self.copy($0) }
+        )
     }
 }

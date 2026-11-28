@@ -52,6 +52,12 @@ final class UploadHistory: ObservableObject {
         UploadHistoryRules.latest(forSource: sourceName, destination: destination, in: entries)
     }
 
+    /// sourceName の録画を、いまの上げる先（設定の「共有」）に上げた、いちばん新しいもの（なければ nil）。
+    /// あれば UploadCenter.shareGIF は作り直さずにこのリンクをコピーするので、メニューの文言もこれで決める
+    func latestEntryForCurrentDestination(forSource sourceName: String) -> UploadHistoryEntry? {
+        UploadDestinations.current.flatMap { latestEntry(forSource: sourceName, destination: $0.id) }
+    }
+
     /// 一覧に出す縮小画像（なければ nil。書き終える前も nil）
     func thumbnail(for entry: UploadHistoryEntry) -> NSImage? {
         NSImage(contentsOf: folder.appendingPathComponent(entry.thumbnailFileName))

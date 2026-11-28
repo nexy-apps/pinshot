@@ -67,6 +67,11 @@ enum UploadDestinations {
     static var current: UploadDestination? {
         AppSettings.shared.uploadDestination.flatMap(destination(for:))
     }
+
+    /// 設定で選んでいる保存先の名前（ボタン・メニューの文言に使う。選んでいなければ「上げる先」）
+    static var currentLabel: String {
+        current?.id.label ?? "上げる先"
+    }
 }
 
 /// ログインの仕方

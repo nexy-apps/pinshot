@@ -34,9 +34,7 @@ enum RecordingActions {
                 done(true)
             } catch {
                 done(false)
-                if !(error is CancellationError) {
-                    AppAlert.inform("GIF を作れませんでした", detail: error.localizedDescription)
-                }
+                reportGIFError(error)
             }
         }
     }
@@ -55,7 +53,7 @@ enum RecordingActions {
         finished: @escaping () -> Void,
         onSaved: @escaping () -> Void
     ) -> Task<Void, Never> {
-        let name = (url.deletingPathExtension().lastPathComponent as NSString).appendingPathExtension("gif") ?? "Pinshot.gif"
+        let name = RecordingRules.gifFileName(forMovieAt: url)
         return Task {
             do {
                 let temporary = try await GIFExporter.exportToTemporaryFile(videoAt: url, progress: progress)
@@ -74,11 +72,15 @@ enum RecordingActions {
                 )
             } catch {
                 finished()
-                if !(error is CancellationError) {
-                    AppAlert.inform("GIF を作れませんでした", detail: error.localizedDescription)
-                }
+                reportGIFError(error)
             }
         }
+    }
+
+    /// GIF を作れなかったことを知らせる（やめたときは知らせない）
+    private static func reportGIFError(_ error: Error) {
+        guard !(error is CancellationError) else { return }
+        AppAlert.inform("GIF を作れませんでした", detail: error.localizedDescription)
     }
 
     /// 録画の大きさ（ポイント。画素の大きさを、いまの画面の倍率で割る）と長さ（秒）。読めなければ nil
@@ -122,7 +124,7 @@ enum ClipboardGIF {
 
     /// url の録画の GIF（あれば使い回し、なければ作る）
     static func file(for url: URL, progress: @escaping @MainActor @Sendable (Double) -> Void) async throws -> URL {
-        let target = folder.appendingPathComponent(url.deletingPathExtension().lastPathComponent).appendingPathExtension("gif")
+        let target = folder.appendingPathComponent(RecordingRules.gifFileName(forMovieAt: url))
         if FileManager.default.fileExists(atPath: target.path) {
             // 使ったものを新しくしておく（古いものから消すため）
             try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: target.path)
