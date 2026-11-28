@@ -61,9 +61,13 @@ struct RecordingHistoryView: View {
             clearSelection: { model.clearSelection() }
         ) {
             HistoryFooterButton(title: "浮かせる", symbol: "play.rectangle") { model.play(selected) }
-            HistoryFooterButton(title: "コピー", symbol: "doc.on.doc") { model.copyFiles(selected) }
-            HistoryFooterButton(title: "リンク", symbol: "link") { model.copyLink(selected) }
-                .help("GIF にして上げ、共有リンクをコピー（上げてあれば、前のリンク）")
+            // クリップボードに入れるもの（録画そのもの）と、上げて作る共有リンクを、名前と印で見分けられるようにする
+            HistoryFooterButton(title: "MP4 をコピー", symbol: "film") { model.copyFiles(selected) }
+                .help("動画（MP4）をクリップボードにコピー（ファイルとして貼り付けられる）")
+            HistoryFooterButton(title: "GIF をコピー", symbol: "photo.on.rectangle") { model.copyGIF(selected) }
+                .help("GIF を作ってクリップボードにコピー（GIF の画像としても、ファイルとしても貼り付けられる）")
+            HistoryFooterButton(title: "\(UploadDestinations.current?.id.label ?? "共有") のリンク", symbol: "link") { model.copyLink(selected) }
+                .help("GIF にして上げ、共有リンク（URL）をコピー（上げてあれば、前のリンク）")
             HistoryFooterButton(title: "GIF で保存", symbol: "photo.on.rectangle") { model.saveGIF(selected) }
             HistoryFooterButton(title: "Finder", symbol: "folder") { model.reveal(selected) }
             HistoryFooterButton(title: "削除…", symbol: "trash", role: .destructive) { model.remove(selected) }
@@ -178,7 +182,10 @@ private struct RecordingItemButtons: View {
     var body: some View {
         HStack(spacing: 4) {
             HistoryHoverButton(symbol: "play.rectangle", help: "浮かせて再生", onImage: onImage) { model.play(model.targets(for: entry)) }
-            HistoryHoverButton(symbol: "link", help: "GIF にして上げ、共有リンクをコピー（上げてあれば、前のリンク）", onImage: onImage) {
+            HistoryHoverButton(symbol: "film", help: "動画（MP4）をクリップボードにコピー", onImage: onImage) {
+                model.copyFiles(model.targets(for: entry))
+            }
+            HistoryHoverButton(symbol: "link", help: "GIF にして上げ、共有リンク（URL）をコピー（上げてあれば、前のリンク）", onImage: onImage) {
                 model.copyLink(model.targets(for: entry))
             }
             HistoryHoverButton(symbol: "folder", help: "Finder で表示", onImage: onImage) { model.reveal(model.targets(for: entry)) }
@@ -209,9 +216,15 @@ private struct RecordingItemInteractions: ViewModifier {
         let single = targets.count == 1
         Button("浮かせて再生\(suffix)") { model.play(targets) }
         Divider()
-        Button("コピー（ファイルとして貼り付けられる）\(suffix)") { model.copyFiles(targets) }
-        Button(single && model.upload(for: targets[0]) != nil ? "前に上げた GIF のリンクをコピー" : "GIF にして上げ、リンクをコピー") { model.copyLink(targets) }
-            .disabled(!single)
+        Section("クリップボードにコピー") {
+            Button("動画（MP4）をコピー\(suffix)") { model.copyFiles(targets) }
+            Button("GIF をコピー") { model.copyGIF(targets) }
+                .disabled(!single)
+        }
+        Section("共有リンク（\(UploadDestinations.current?.id.label ?? "上げる先")）") {
+            Button(single && model.upload(for: targets[0]) != nil ? "前に上げた GIF のリンクをコピー" : "GIF にして上げ、リンクをコピー") { model.copyLink(targets) }
+                .disabled(!single)
+        }
         Divider()
         Button("MP4 で保存…") { model.saveMovie(targets) }
             .disabled(!single)

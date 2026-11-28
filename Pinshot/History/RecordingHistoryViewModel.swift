@@ -100,16 +100,31 @@ final class RecordingHistoryViewModel: ObservableObject {
         }
     }
 
-    /// ファイルとしてコピーする（Finder・チャットなどに貼り付けられる）
+    /// 動画（MP4）を、ファイルとしてクリップボードに入れる（Finder・チャットなどに貼り付けられる）
     func copyFiles(_ entries: [RecordingHistoryEntry]) {
         guard !entries.isEmpty else { return }
         RecordingActions.copyFiles(entries.map(\.url))
-        notice.show(entries.count == 1 ? "コピーしました（ファイルとして貼り付けられます）" : "\(entries.count) 本をコピーしました")
+        notice.show(entries.count == 1 ? "動画（MP4）をコピーしました" : "\(entries.count) 本の動画（MP4）をコピーしました")
+    }
+
+    /// GIF を作って、クリップボードに入れる（1 本ずつ。同じ録画の GIF は作り直さない）
+    func copyGIF(_ entries: [RecordingHistoryEntry]) {
+        guard let entry = oneOf(entries, action: "GIF をコピー"), !exporting.contains(entry.id) else { return }
+        exporting.insert(entry.id)
+        notice.show("GIF を作っています…", working: true)
+        RecordingActions.copyGIF(
+            entry.url,
+            progress: { [weak self] value in self?.notice.show("GIF を作っています…（\(Int(value * 100))%）", working: true) },
+            done: { [weak self] copied in
+                self?.exporting.remove(entry.id)
+                self?.notice.show(copied ? "GIF をコピーしました" : "GIF をコピーできませんでした")
+            }
+        )
     }
 
     /// GIF にして上げ、共有リンクをコピーする（上げてあれば、作り直さずに前のリンク。1 本ずつ）
     func copyLink(_ entries: [RecordingHistoryEntry]) {
-        guard let entry = oneOf(entries, action: "リンクをコピー") else { return }
+        guard let entry = oneOf(entries, action: "共有リンクをコピー") else { return }
         UploadCenter.shared.shareGIF(fromMovieAt: entry.url) { [weak self] status in
             self?.notice.show(status.displayText, working: status.isWorking)
         }
