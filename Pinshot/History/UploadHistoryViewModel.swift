@@ -60,6 +60,29 @@ final class UploadHistoryViewModel: ObservableObject {
         notice.show(entries.count == 1 ? "コピーしました" : "\(entries.count) 件のリンクをコピーしました")
     }
 
+    /// 手元に残っている元のファイル（録画を GIF にして上げたものの、元の録画。まだ残っていれば）。
+    /// 画像は上げるときに元のファイルを残していないので、いつも nil
+    func localFile(for entry: UploadHistoryEntry) -> URL? {
+        guard let name = entry.sourceName else { return nil }
+        let url = RecordingStore.shared.folder.appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// 元のファイルが手元に残っているものがあるか（下の帯・右クリックに Finder を出すか）
+    func hasLocalFile(_ entries: [UploadHistoryEntry]) -> Bool {
+        entries.contains { localFile(for: $0) != nil }
+    }
+
+    /// 元のファイル（元の録画）を Finder で見せる（残っているものだけ）
+    func revealInFinder(_ entries: [UploadHistoryEntry]) {
+        let urls = entries.compactMap(localFile(for:))
+        guard !urls.isEmpty else {
+            notice.show("Finder で見せられるファイルがありません（画像は、手元に元のファイルを残していません）")
+            return
+        }
+        NSWorkspace.shared.activateFileViewerSelecting(urls)
+    }
+
     /// ブラウザで開く（たくさん開きすぎないよう、10 件まで）
     func openInBrowser(_ entries: [UploadHistoryEntry]) {
         entries.prefix(10).forEach(history.openInBrowser)

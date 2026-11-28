@@ -64,6 +64,11 @@ struct UploadHistoryView: View {
             }
             .help("\(settings.shareLinkFormat.label)をコピー（2 件以上は 1 行に 1 つずつ）")
             HistoryFooterButton(title: "ブラウザで開く", symbol: "safari") { model.openInBrowser(selected) }
+            // 手元に元のファイル（録画から作って上げた GIF の、元の録画）が残っているときだけ。ほかの一覧と同じく、削除の手前
+            if model.hasLocalFile(selected) {
+                HistoryFooterButton(title: "Finder", symbol: "folder") { model.revealInFinder(selected) }
+                    .help("元の録画を Finder で表示")
+            }
             HistoryFooterButton(title: "削除…", symbol: "trash", role: .destructive) { model.remove(selected) }
         }
     }
@@ -189,6 +194,9 @@ private struct UploadItemInteractions: ViewModifier {
         }
         Divider()
         Button("ブラウザで開く\(suffix)") { model.openInBrowser(targets) }
+        if model.hasLocalFile(targets) {
+            Button("元の録画を Finder で表示") { model.revealInFinder(targets) }
+        }
         Divider()
         Button("削除…\(suffix)", role: .destructive) { model.remove(targets) }
     }
