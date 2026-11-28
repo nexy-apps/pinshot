@@ -154,22 +154,13 @@ private struct RecordingBadges: View {
     var body: some View {
         HStack(spacing: 4) {
             if let upload = model.upload(for: entry) {
-                badge(Label("GIF", systemImage: "link"))
+                HistoryBadge(onImage: onImage) { Label(ExportKind.gif.badgeLabel, systemImage: "link") }
                     .help("GIF にして \(upload.destination.label) に上げました（\(upload.link.pageURL.absoluteString)）。「リンク」で、このリンクをコピーできます")
             }
             if onImage, let duration = model.durationText(for: entry) {
-                badge(Text(duration).monospacedDigit())
+                HistoryBadge { Text(duration).monospacedDigit() }
             }
         }
-    }
-
-    private func badge(_ content: some View) -> some View {
-        content
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(onImage ? Color.white : Color.secondary)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(onImage ? Color.black.opacity(0.55) : Color.primary.opacity(0.08)))
     }
 }
 

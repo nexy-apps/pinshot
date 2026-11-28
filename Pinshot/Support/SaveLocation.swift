@@ -35,6 +35,11 @@ enum ExportKind: String, CaseIterable, Identifiable {
         }
     }
 
+    /// 一覧の印に出す短い名前（例: 「GIF」「PNG」）
+    var badgeLabel: String {
+        fileExtension.uppercased()
+    }
+
     /// 保存するときのファイル名の拡張子
     var fileExtension: String {
         switch self {
