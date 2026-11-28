@@ -60,7 +60,7 @@ final class RecordingHistoryViewModel: ObservableObject {
 
     /// この録画を GIF にして上げた、いちばん新しいもの（どの上げる先でも。なければ nil）
     func upload(for entry: RecordingHistoryEntry) -> UploadHistoryEntry? {
-        UploadHistory.shared.entries.first { $0.sourceName == entry.name }
+        UploadHistory.shared.latestEntry(forSource: entry.name)
     }
 
     // MARK: - 選ぶ
@@ -109,15 +109,12 @@ final class RecordingHistoryViewModel: ObservableObject {
 
     /// GIF を作って、クリップボードに入れる（1 本ずつ。同じ録画の GIF は作り直さない）
     func copyGIF(_ entries: [RecordingHistoryEntry]) {
-        guard let entry = oneOf(entries, action: "GIF をコピー"), !exporting.contains(entry.id) else { return }
-        exporting.insert(entry.id)
-        notice.show("GIF を作っています…", working: true)
+        guard let entry = startMakingGIF(entries, action: "GIF をコピー") else { return }
         RecordingActions.copyGIF(
             entry.url,
-            progress: { [weak self] value in self?.notice.show("GIF を作っています…（\(Int(value * 100))%）", working: true) },
+            progress: gifProgress,
             done: { [weak self] copied in
-                self?.exporting.remove(entry.id)
-                self?.notice.show(copied ? "GIF をコピーしました" : "GIF をコピーできませんでした")
+                self?.finishMakingGIF(entry, message: copied ? "GIF をコピーしました" : "GIF をコピーできませんでした")
             }
         )
     }
@@ -138,18 +135,33 @@ final class RecordingHistoryViewModel: ObservableObject {
 
     /// GIF を作って保存する（1 本ずつ。作っている間は、下に進み具合を出す）
     func saveGIF(_ entries: [RecordingHistoryEntry]) {
-        guard let entry = oneOf(entries, action: "GIF で保存"), !exporting.contains(entry.id) else { return }
-        exporting.insert(entry.id)
-        notice.show("GIF を作っています…", working: true)
+        guard let entry = startMakingGIF(entries, action: "GIF で保存") else { return }
         RecordingActions.saveGIF(
             entry.url,
-            progress: { [weak self] value in self?.notice.show("GIF を作っています…（\(Int(value * 100))%）", working: true) },
-            finished: { [weak self] in
-                self?.exporting.remove(entry.id)
-                self?.notice.show("GIF を作りました")
-            },
+            progress: gifProgress,
+            finished: { [weak self] in self?.finishMakingGIF(entry, message: "GIF を作りました") },
             onSaved: { [weak self] in self?.notice.show("GIF を保存しました") }
         )
+    }
+
+    // MARK: - GIF を作っている間（コピー・保存で同じ）
+
+    /// 1 本だけ選んでいて、その録画の GIF をまだ作っていなければ、作り始めの印と知らせを出して、その 1 本を返す
+    private func startMakingGIF(_ entries: [RecordingHistoryEntry], action: String) -> RecordingHistoryEntry? {
+        guard let entry = oneOf(entries, action: action), !exporting.contains(entry.id) else { return nil }
+        exporting.insert(entry.id)
+        notice.show(RecordingRules.gifMakingText(), working: true)
+        return entry
+    }
+
+    /// 作っている進み具合を、下の知らせに出す
+    private var gifProgress: @MainActor @Sendable (Double) -> Void {
+        { [weak self] value in self?.notice.show(RecordingRules.gifMakingText(progress: value), working: true) }
+    }
+
+    private func finishMakingGIF(_ entry: RecordingHistoryEntry, message: String) {
+        exporting.remove(entry.id)
+        notice.show(message)
     }
 
     func reveal(_ entries: [RecordingHistoryEntry]) {

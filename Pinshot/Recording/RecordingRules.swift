@@ -76,6 +76,12 @@ enum RecordingRules {
         count == 0 ? "なし" : "\(count) 本・\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))"
     }
 
+    /// GIF を作っている間の知らせ（例: 「GIF を作っています…（42%）」。進み具合が分からなければ「GIF を作っています…」）
+    static func gifMakingText(progress: Double? = nil) -> String {
+        guard let progress else { return "GIF を作っています…" }
+        return "GIF を作っています…（\(Int((min(max(progress, 0), 1) * 100).rounded(.down)))%）"
+    }
+
     /// フォルダの中の録画から、一覧の 1 本ずつを作る（新しい順）。ID はファイル名ごとに ids に覚え、数え直しても変えない
     /// （選んでいるものが外れないように）。なくなったファイルの ID は ids から外す
     static func historyEntries(from files: [RecordingFile], ids: inout [String: UUID]) -> [RecordingHistoryEntry] {

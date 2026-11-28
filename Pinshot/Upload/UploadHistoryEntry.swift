@@ -35,9 +35,9 @@ enum UploadHistoryRules {
         [entry] + entries.filter { $0.id != entry.id }
     }
 
-    /// sourceName の録画を destination に上げた、いちばん新しいもの（entries は新しい順）。なければ nil
-    static func latest(forSource sourceName: String, destination: UploadDestinationID, in entries: [UploadHistoryEntry]) -> UploadHistoryEntry? {
-        entries.first { $0.sourceName == sourceName && $0.destination == destination }
+    /// sourceName の録画を上げた、いちばん新しいもの（entries は新しい順）。destination を渡すと、その上げる先に上げたものだけ。なければ nil
+    static func latest(forSource sourceName: String, destination: UploadDestinationID? = nil, in entries: [UploadHistoryEntry]) -> UploadHistoryEntry? {
+        entries.first { $0.sourceName == sourceName && (destination == nil || $0.destination == destination) }
     }
 
     /// 残す数を超えた古いもの（entries は新しい順）

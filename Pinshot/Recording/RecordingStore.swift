@@ -66,6 +66,12 @@ final class RecordingStore: ObservableObject {
         recount()
     }
 
+    /// name（ファイル名）の録画が残っていれば、その場所（上げたものの一覧の「元の録画」。なければ nil）
+    func file(named name: String) -> URL? {
+        let url = folder.appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
     /// url の録画の、一覧の 1 本（なければ nil）
     func entry(for url: URL) -> RecordingHistoryEntry? {
         entries.first { $0.url.standardizedFileURL == url.standardizedFileURL }
