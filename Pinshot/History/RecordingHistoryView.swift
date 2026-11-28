@@ -69,7 +69,7 @@ struct RecordingHistoryView: View {
             HistoryFooterButton(title: "GIF 保存", symbol: "photo.on.rectangle") { model.saveGIF(selected) }
             HistoryFooterButton(title: UploadDestinations.current.map { "\($0.id.label) のリンク" } ?? "共有リンク", symbol: "link") { model.copyLink(selected) }
                 .help("GIF にして上げ、共有リンク（URL）をコピー（上げてあれば、前のリンク）")
-            HistoryFooterButton(title: "Finder", symbol: "folder") { model.reveal(selected) }
+            HistoryFooterButton(title: "Finder", symbol: "folder") { model.revealInFinder(selected) }
             HistoryFooterButton(title: "削除…", symbol: "trash", role: .destructive) { model.remove(selected) }
         }
     }
@@ -188,7 +188,7 @@ private struct RecordingItemButtons: View {
             HistoryHoverButton(symbol: "link", help: "GIF にして上げ、共有リンク（URL）をコピー（上げてあれば、前のリンク）", onImage: onImage) {
                 model.copyLink(model.targets(for: entry))
             }
-            HistoryHoverButton(symbol: "folder", help: "Finder で表示", onImage: onImage) { model.reveal(model.targets(for: entry)) }
+            HistoryHoverButton(symbol: "folder", help: "Finder で表示", onImage: onImage) { model.revealInFinder(model.targets(for: entry)) }
             HistoryHoverButton(symbol: "trash", help: "削除…", onImage: onImage) { model.remove(model.targets(for: entry)) }
         }
     }
@@ -221,8 +221,8 @@ private struct RecordingItemInteractions: ViewModifier {
             Button("GIF をコピー") { model.copyGIF(targets) }
                 .disabled(!single)
         }
-        Section("共有リンク（\(UploadDestinations.current?.id.label ?? "上げる先")）") {
-            Button(single && model.upload(for: targets[0]) != nil ? "前に上げた GIF のリンクをコピー" : "GIF にして上げ、リンクをコピー") { model.copyLink(targets) }
+        Section("共有リンク（\(UploadDestinations.currentLabel)）") {
+            Button(single && model.hasUploadedToCurrentDestination(targets[0]) ? "前に上げた GIF のリンクをコピー" : "GIF にして上げ、リンクをコピー") { model.copyLink(targets) }
                 .disabled(!single)
         }
         Divider()
@@ -230,7 +230,7 @@ private struct RecordingItemInteractions: ViewModifier {
             .disabled(!single)
         Button("GIF で保存…") { model.saveGIF(targets) }
             .disabled(!single)
-        Button("Finder で表示\(suffix)") { model.reveal(targets) }
+        Button("Finder で表示\(suffix)") { model.revealInFinder(targets) }
         Divider()
         Button("削除…\(suffix)", role: .destructive) { model.remove(targets) }
     }

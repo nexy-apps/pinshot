@@ -3,7 +3,7 @@ import AppKit
 /// 履歴の一覧の選択と操作（浮かせる・コピー・保存・Finder・消す）。
 /// 選んでいるものがあるときは、選んでいるものすべてに対して行う
 @MainActor
-final class CaptureHistoryViewModel: ObservableObject {
+final class CaptureHistoryViewModel: ObservableObject, HistoryListModel {
     let history: CaptureHistory
     /// 選んでいる履歴
     @Published private(set) var selection = ListSelection()
@@ -19,14 +19,10 @@ final class CaptureHistoryViewModel: ObservableObject {
         self.notice = notice
     }
 
-    /// 選んでいる履歴（新しい順）
-    var selectedEntries: [CaptureHistoryEntry] {
-        history.entries.filter { selection.contains($0.id) }
-    }
+    var listedEntries: [CaptureHistoryEntry] { history.entries }
 
-    /// entry に対する操作の対象（entry を選んでいれば、選んでいるものすべて。そうでなければ entry だけ）
-    func targets(for entry: CaptureHistoryEntry) -> [CaptureHistoryEntry] {
-        selection.contains(entry.id) ? selectedEntries : [entry]
+    func updateSelection(_ change: (inout ListSelection) -> Void) {
+        change(&selection)
     }
 
     func thumbnail(for entry: CaptureHistoryEntry) -> NSImage? {
@@ -34,28 +30,6 @@ final class CaptureHistoryViewModel: ObservableObject {
         guard let image = history.thumbnailImage(for: entry) else { return nil }
         thumbnails.setObject(image, forKey: entry.id as NSUUID)
         return image
-    }
-
-    // MARK: - 選ぶ
-
-    private var order: [UUID] { history.entries.map(\.id) }
-
-    /// クリックで選ぶ（⌘ で足す・外す、shift で起点からの範囲）
-    func click(_ entry: CaptureHistoryEntry, modifiers: NSEvent.ModifierFlags) {
-        selection.click(entry.id, command: modifiers.contains(.command), shift: modifiers.contains(.shift), order: order)
-    }
-
-    func selectAll() {
-        selection.selectAll(order)
-    }
-
-    func clearSelection() {
-        selection.clear()
-    }
-
-    /// ← → で、となりの 1 枚を選ぶ（shift で範囲を広げる）
-    func moveSelection(by step: Int, extending: Bool) {
-        selection.move(by: step, extending: extending, order: order)
     }
 
     // MARK: - 操作
@@ -132,29 +106,15 @@ final class CaptureHistoryViewModel: ObservableObject {
 
     // MARK: - キー
 
-    /// 一覧のキー操作。扱ったら true（どのキーで何をするかは ListKeys。リストのときだけ ↑ ↓ でも動かす）
+    /// 一覧のキー操作。扱ったら true（リストのときだけ ↑ ↓ でも動かす。⌘C は先頭の 1 枚をコピー）
     func handleKey(_ event: NSEvent) -> Bool {
-        let isList = AppSettings.shared.historyLayout == .list
-        guard let action = ListKeys.action(for: event, horizontal: true, vertical: isList) else { return false }
-        let selected = selectedEntries
-        switch action {
-        case .selectAll:
-            selectAll()
-        case .move(let step, let extending):
-            moveSelection(by: step, extending: extending)
-        case .clearSelection:
-            guard !selection.isEmpty else { return false }
-            clearSelection()
-        case .remove:
-            guard !selected.isEmpty else { return false }
-            remove(selected)
-        case .activate:
-            guard !selected.isEmpty else { return false }
-            pin(selected)
-        case .copy:
-            guard let first = selected.first else { return false }
-            copy(first)
-        }
-        return true
+        handleListKey(
+            event,
+            horizontal: true,
+            vertical: AppSettings.shared.historyLayout == .list,
+            remove: { self.remove($0) },
+            activate: { self.pin($0) },
+            copy: { self.copy($0[0]) }
+        )
     }
 }

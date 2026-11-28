@@ -4,7 +4,7 @@ import AppKit
 /// 選び方は、撮った画像・読み取った文字の一覧と同じ（クリック・⌘ + クリック・shift + クリック・⌘A・矢印キー）。
 /// 選んでいるものがあるときは、選んでいるものすべてに対して行う
 @MainActor
-final class UploadHistoryViewModel: ObservableObject {
+final class UploadHistoryViewModel: ObservableObject, HistoryListModel {
     let history: UploadHistory
     @Published private(set) var selection = ListSelection()
     /// マウスを乗せている 1 件
@@ -18,14 +18,10 @@ final class UploadHistoryViewModel: ObservableObject {
         self.notice = notice
     }
 
-    /// 選んでいるもの（新しい順）
-    var selectedEntries: [UploadHistoryEntry] {
-        history.entries.filter { selection.contains($0.id) }
-    }
+    var listedEntries: [UploadHistoryEntry] { history.entries }
 
-    /// entry に対する操作の対象（entry を選んでいれば、選んでいるものすべて。そうでなければ entry だけ）
-    func targets(for entry: UploadHistoryEntry) -> [UploadHistoryEntry] {
-        selection.contains(entry.id) ? selectedEntries : [entry]
+    func updateSelection(_ change: (inout ListSelection) -> Void) {
+        change(&selection)
     }
 
     func thumbnail(for entry: UploadHistoryEntry) -> NSImage? {
@@ -33,22 +29,6 @@ final class UploadHistoryViewModel: ObservableObject {
         guard let image = history.thumbnail(for: entry) else { return nil }
         thumbnails.setObject(image, forKey: entry.id as NSUUID)
         return image
-    }
-
-    // MARK: - 選ぶ
-
-    private var order: [UUID] { history.entries.map(\.id) }
-
-    func click(_ entry: UploadHistoryEntry, modifiers: NSEvent.ModifierFlags) {
-        selection.click(entry.id, command: modifiers.contains(.command), shift: modifiers.contains(.shift), order: order)
-    }
-
-    func selectAll() {
-        selection.selectAll(order)
-    }
-
-    func clearSelection() {
-        selection.clear()
     }
 
     // MARK: - 操作
@@ -126,29 +106,15 @@ final class UploadHistoryViewModel: ObservableObject {
 
     // MARK: - キー
 
-    /// 一覧のキー操作。扱ったら true（どのキーで何をするかは ListKeys。リストのときだけ ↑ ↓ でも動かす）
+    /// 一覧のキー操作。扱ったら true（リストのときだけ ↑ ↓ でも動かす。return はブラウザで開く）
     func handleKey(_ event: NSEvent) -> Bool {
-        let isList = AppSettings.shared.uploadHistoryLayout == .list
-        guard let action = ListKeys.action(for: event, horizontal: true, vertical: isList) else { return false }
-        let selected = selectedEntries
-        switch action {
-        case .selectAll:
-            selectAll()
-        case .move(let step, let extending):
-            selection.move(by: step, extending: extending, order: order)
-        case .clearSelection:
-            guard !selection.isEmpty else { return false }
-            clearSelection()
-        case .remove:
-            guard !selected.isEmpty else { return false }
-            remove(selected)
-        case .activate:
-            guard !selected.isEmpty else { return false }
-            openInBrowser(selected)
-        case .copy:
-            guard !selected.isEmpty else { return false }
-            copyLinks(selected, format: AppSettings.shared.shareLinkFormat)
-        }
-        return true
+        handleListKey(
+            event,
+            horizontal: true,
+            vertical: AppSettings.shared.uploadHistoryLayout == .list,
+            remove: { self.remove($0) },
+            activate: { self.openInBrowser($0) },
+            copy: { self.copyLinks($0, format: AppSettings.shared.shareLinkFormat) }
+        )
     }
 }

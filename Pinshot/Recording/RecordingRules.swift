@@ -76,6 +76,11 @@ enum RecordingRules {
         count == 0 ? "なし" : "\(count) 本・\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))"
     }
 
+    /// 録画から作る GIF のファイル名（録画の名前の拡張子を gif にしたもの。例: 「Pinshot 2026-11-28 10.00.00.gif」）
+    static func gifFileName(forMovieAt url: URL) -> String {
+        url.deletingPathExtension().appendingPathExtension("gif").lastPathComponent
+    }
+
     /// GIF を作っている間の知らせ（例: 「GIF を作っています…（42%）」。進み具合が分からなければ「GIF を作っています…」）
     static func gifMakingText(progress: Double? = nil) -> String {
         guard let progress else { return "GIF を作っています…" }

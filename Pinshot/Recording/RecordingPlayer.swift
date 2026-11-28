@@ -251,9 +251,9 @@ final class RecordingPlayerModel: ObservableObject {
         let audioEntry: MenuEntry = hasAudio
             ? .item(title: isMuted ? "音を出す" : "音を消す", image: symbol(isMuted ? "speaker.wave.2" : "speaker.slash")) { [weak self] in self?.toggleMute() }
             : .disabled(title: "この録画には音が入っていません")
-        let label = UploadDestinations.current?.id.label ?? "上げる先"
+        let label = UploadDestinations.currentLabel
         // 上げてあれば、作り直さずに前のリンクをコピーする（UploadCenter.shareGIF）ので、そう書く
-        let uploaded = UploadDestinations.current.flatMap { UploadHistory.shared.latestEntry(forSource: url.lastPathComponent, destination: $0.id) } != nil
+        let uploaded = UploadHistory.shared.latestEntryForCurrentDestination(forSource: url.lastPathComponent) != nil
         let uploadTitle = uploaded ? "前に \(label) に上げた GIF のリンクをコピー" : "GIF にして \(label) に上げ、リンクをコピー"
         return PopupMenu.makeMenu([
             .item(title: isPlaying ? "一時停止" : "再生", image: symbol(isPlaying ? "pause" : "play")) { [weak self] in self?.togglePlay() },
@@ -449,15 +449,13 @@ private struct RecordingPlayerView: View {
             formatSegment(gifBusy ? "…" : "GIF", help: gif.help, action: gif.action)
                 .disabled(gifBusy)
         }
-        .frame(height: 22)
-        .background(Capsule().strokeBorder(Color.white.opacity(0.4)))
+        .barOutline()
     }
 
     private func formatSegment(_ title: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white)
+                .barLabel()
                 .frame(width: 34, height: 22)
                 .contentShape(Rectangle())
         }
@@ -472,17 +470,15 @@ private struct RecordingPlayerView: View {
         return Button(action: model.uploadGIF) {
             Label(label, systemImage: "link")
                 .labelStyle(.titleAndIcon)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white)
+                .barLabel()
                 .padding(.horizontal, 9)
-                .frame(height: 22)
-                .background(Capsule().strokeBorder(Color.white.opacity(0.4)))
+                .barOutline()
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .disabled(model.isUploading)
         .opacity(model.isUploading ? 0.5 : 1)
-        .hoverHint("GIF にして \(UploadDestinations.current?.id.label ?? "上げる先") に上げ、共有リンク（URL）をコピー（上げる先は設定の「共有」。大きいときは小さくして上げる。音は入らない。2 回目からは、前に上げたリンクをコピー）")
+        .hoverHint("GIF にして \(UploadDestinations.currentLabel) に上げ、共有リンク（URL）をコピー（上げる先は設定の「共有」。大きいときは小さくして上げる。音は入らない。2 回目からは、前に上げたリンクをコピー）")
         .hoverRole()
     }
 
@@ -542,5 +538,20 @@ private struct PlayerLayerView: NSViewRepresentable {
 
     func updateNSView(_ view: AVPlayerView, context: Context) {
         view.player = player
+    }
+}
+
+/// 録画の窓の操作バーの、枠だけの台（コピー・保存の「MP4 | GIF」と、共有リンク）の見た目
+private extension View {
+    /// 台の上の文字
+    func barLabel() -> some View {
+        font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.white)
+    }
+
+    /// 枠だけの台（高さをそろえ、細い白い枠で囲む）
+    func barOutline() -> some View {
+        frame(height: 22)
+            .background(Capsule().strokeBorder(Color.white.opacity(0.4)))
     }
 }

@@ -5,7 +5,7 @@ import AppKit
 /// 録画からいつでも同じ GIF を作り直せるので、GIF はアプリの中に残さない。上げた GIF は、上げたものの履歴が覚えている
 /// 元の録画の名前（sourceName）で結び付けて、印とリンクを出す
 @MainActor
-final class RecordingHistoryViewModel: ObservableObject {
+final class RecordingHistoryViewModel: ObservableObject, HistoryListModel {
     let store: RecordingStore
     @Published private(set) var selection = ListSelection()
     /// マウスを乗せている 1 本
@@ -23,14 +23,16 @@ final class RecordingHistoryViewModel: ObservableObject {
         self.notice = notice
     }
 
-    /// 選んでいるもの（新しい順）
-    var selectedEntries: [RecordingHistoryEntry] {
-        store.entries.filter { selection.contains($0.id) }
+    var listedEntries: [RecordingHistoryEntry] { store.entries }
+
+    func updateSelection(_ change: (inout ListSelection) -> Void) {
+        change(&selection)
     }
 
-    /// entry に対する操作の対象（entry を選んでいれば、選んでいるものすべて。そうでなければ entry だけ）
-    func targets(for entry: RecordingHistoryEntry) -> [RecordingHistoryEntry] {
-        selection.contains(entry.id) ? selectedEntries : [entry]
+    /// url の録画だけを選ぶ（録画の窓の「履歴」から開いたとき）
+    func reveal(url: URL) {
+        guard let entry = store.entry(for: url) else { return }
+        selectOnly(entry.id)
     }
 
     // MARK: - 縮小画像と長さ
@@ -63,26 +65,9 @@ final class RecordingHistoryViewModel: ObservableObject {
         UploadHistory.shared.latestEntry(forSource: entry.name)
     }
 
-    // MARK: - 選ぶ
-
-    private var order: [UUID] { store.entries.map(\.id) }
-
-    func click(_ entry: RecordingHistoryEntry, modifiers: NSEvent.ModifierFlags) {
-        selection.click(entry.id, command: modifiers.contains(.command), shift: modifiers.contains(.shift), order: order)
-    }
-
-    /// url の録画だけを選ぶ（録画の窓の「履歴」から開いたとき）
-    func reveal(url: URL) {
-        guard let entry = store.entry(for: url) else { return }
-        selection.click(entry.id, command: false, shift: false, order: order)
-    }
-
-    func selectAll() {
-        selection.selectAll(order)
-    }
-
-    func clearSelection() {
-        selection.clear()
+    /// いまの上げる先に、もう上げているか（上げていれば「リンク」は、作り直さずに前のリンクをコピーする）
+    func hasUploadedToCurrentDestination(_ entry: RecordingHistoryEntry) -> Bool {
+        UploadHistory.shared.latestEntryForCurrentDestination(forSource: entry.name) != nil
     }
 
     // MARK: - 操作
@@ -164,7 +149,7 @@ final class RecordingHistoryViewModel: ObservableObject {
         notice.show(message)
     }
 
-    func reveal(_ entries: [RecordingHistoryEntry]) {
+    func revealInFinder(_ entries: [RecordingHistoryEntry]) {
         guard !entries.isEmpty else { return }
         NSWorkspace.shared.activateFileViewerSelecting(entries.map(\.url))
     }
@@ -197,29 +182,15 @@ final class RecordingHistoryViewModel: ObservableObject {
 
     // MARK: - キー
 
-    /// 一覧のキー操作。扱ったら true（どのキーで何をするかは ListKeys。リストのときだけ ↑ ↓ でも動かす）
+    /// 一覧のキー操作。扱ったら true（リストのときだけ ↑ ↓ でも動かす。return は浮かせて再生、⌘C は MP4 をコピー）
     func handleKey(_ event: NSEvent) -> Bool {
-        let isList = AppSettings.shared.recordingHistoryLayout == .list
-        guard let action = ListKeys.action(for: event, horizontal: true, vertical: isList) else { return false }
-        let selected = selectedEntries
-        switch action {
-        case .selectAll:
-            selectAll()
-        case .move(let step, let extending):
-            selection.move(by: step, extending: extending, order: order)
-        case .clearSelection:
-            guard !selection.isEmpty else { return false }
-            clearSelection()
-        case .remove:
-            guard !selected.isEmpty else { return false }
-            remove(selected)
-        case .activate:
-            guard !selected.isEmpty else { return false }
-            play(selected)
-        case .copy:
-            guard !selected.isEmpty else { return false }
-            copyFiles(selected)
-        }
-        return true
+        handleListKey(
+            event,
+            horizontal: true,
+            vertical: AppSettings.shared.recordingHistoryLayout == .list,
+            remove: { self.remove($0) },
+            activate: { self.play($0) },
+            copy: { self.copyFiles($0) }
+        )
     }
 }
