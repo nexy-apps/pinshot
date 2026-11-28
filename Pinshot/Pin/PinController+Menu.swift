@@ -61,7 +61,7 @@ extension PinController {
 
             .separator,
             .item(title: "閉じる", image: symbol("xmark"), key: "w") { [weak self] in self?.close() },
-        ])
+        ] + AccessibilityPermission.menuCaptureHint)
     }
 
     /// 拡大率の一覧（ツールバー・操作バーの拡大率と同じ選択肢。いちばん上は実際のサイズ）

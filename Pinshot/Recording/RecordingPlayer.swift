@@ -95,6 +95,8 @@ final class RecordingPlayerModel: ObservableObject {
     @Published private(set) var gifProgress: Double?
     /// GIF にして上げている途中か（終わるまで、上げるボタンは押せない）
     @Published private(set) var isUploading = false
+    /// クリップボードに入れる GIF を作っている途中か
+    @Published private(set) var isCopyingGIF = false
     /// 操作したあとの短い知らせ
     @Published private(set) var notice: String?
     /// 動画にマウスを乗せているか（乗せている間は、浮かせた画像と同じく細い白い枠を出す）
@@ -178,10 +180,25 @@ final class RecordingPlayerModel: ObservableObject {
         exportTask?.cancel()
     }
 
-    /// ファイルとしてクリップボードに入れる（Finder・チャットなどに貼り付けられる）
+    /// 動画（MP4）を、ファイルとしてクリップボードに入れる（Finder・チャットなどに貼り付けられる）
     func copy() {
         RecordingActions.copyFiles([url])
-        show("コピーしました（ファイルとして貼り付けられます）")
+        show("動画（MP4）をコピーしました")
+    }
+
+    /// GIF を作って、クリップボードに入れる（GIF の画像としても、ファイルとしても貼り付けられる。同じ録画の GIF は作り直さない）
+    func copyGIF() {
+        guard !isCopyingGIF else { return }
+        isCopyingGIF = true
+        show("GIF を作っています…", sticky: true)
+        exportTask = RecordingActions.copyGIF(
+            url,
+            progress: { [weak self] value in self?.show("GIF を作っています…（\(Int(value * 100))%）", sticky: true) },
+            done: { [weak self] copied in
+                self?.isCopyingGIF = false
+                self?.show(copied ? "GIF をコピーしました" : "GIF をコピーできませんでした")
+            }
+        )
     }
 
     func saveMovie() {
@@ -227,13 +244,22 @@ final class RecordingPlayerModel: ObservableObject {
         let audioEntry: MenuEntry = hasAudio
             ? .item(title: isMuted ? "音を出す" : "音を消す", image: symbol(isMuted ? "speaker.wave.2" : "speaker.slash")) { [weak self] in self?.toggleMute() }
             : .disabled(title: "この録画には音が入っていません")
-        let uploadTitle = "GIF にして \(UploadDestinations.current?.id.label ?? "上げる先") に上げ、リンクをコピー"
+        let label = UploadDestinations.current?.id.label ?? "上げる先"
+        // 上げてあれば、作り直さずに前のリンクをコピーする（UploadCenter.shareGIF）ので、そう書く
+        let uploaded = UploadDestinations.current.flatMap { UploadHistory.shared.latestEntry(forSource: url.lastPathComponent, destination: $0.id) } != nil
+        let uploadTitle = uploaded ? "前に \(label) に上げた GIF のリンクをコピー" : "GIF にして \(label) に上げ、リンクをコピー"
         return PopupMenu.makeMenu([
             .item(title: isPlaying ? "一時停止" : "再生", image: symbol(isPlaying ? "pause" : "play")) { [weak self] in self?.togglePlay() },
             audioEntry,
             .separator,
-            .header("コピー"),
-            .item(title: "コピー（ファイルとして貼り付けられる）", image: symbol("doc.on.doc")) { [weak self] in self?.copy() },
+            // 録画そのものをクリップボードに入れる（MP4・GIF）と、上げて作る共有リンクを、見出しで分ける
+            .header("クリップボードにコピー"),
+            .item(title: "動画（MP4）をコピー", image: symbol("film")) { [weak self] in self?.copy() },
+            isCopyingGIF
+                ? .disabled(title: "GIF をコピー（作っています）")
+                : .item(title: "GIF をコピー", image: symbol("photo.on.rectangle")) { [weak self] in self?.copyGIF() },
+            .separator,
+            .header("共有リンク（\(label)）"),
             isUploading
                 ? .disabled(title: "\(uploadTitle)（上げています）")
                 : .item(title: uploadTitle, image: symbol("link")) { [weak self] in self?.uploadGIF() },
@@ -248,7 +274,7 @@ final class RecordingPlayerModel: ObservableObject {
             .item(title: "履歴…", image: symbol("clock.arrow.circlepath")) { [weak self] in self?.openHistory() },
             .separator,
             .item(title: "閉じる", image: symbol("xmark")) { [weak self] in self?.close() },
-        ])
+        ] + AccessibilityPermission.menuCaptureHint)
     }
 
     /// 短い知らせを出す（sticky なら、次の知らせを出すまで消さない。上げている途中など）
@@ -333,15 +359,9 @@ private struct RecordingPlayerView: View {
             .hoverRole()
             muteButton
             QuickActionDivider()
-            // クリップボードに入れるもの（ファイル・共有リンク）。浮かせた画像の操作バーと同じ並び
-            QuickActionButton(symbol: "doc.on.doc", help: "コピー（ファイルとして貼り付けられる）", action: model.copy)
-            QuickActionButton(
-                symbol: "link",
-                help: "GIF にして \(UploadDestinations.current?.id.label ?? "上げる先") に上げ、共有リンクをコピー（上げる先は設定の「共有」。大きいときは小さくして上げる。音は入らない。2 回目からは、前に上げたリンクをコピー）",
-                action: model.uploadGIF
-            )
-            .disabled(model.isUploading)
-            .opacity(model.isUploading ? 0.4 : 1)
+            // クリップボードに入れるもの。録画そのもの（MP4・GIF）は枠だけの台、上げて作る共有リンクは塗った台にして、見分けられるようにする
+            copyButtons
+            linkButton
             QuickActionDivider()
             // ファイルにするもの（MP4・GIF で保存と、置き場所を見に行く）
             QuickActionButton(symbol: "square.and.arrow.down", help: "MP4 で保存", action: model.saveMovie)
@@ -367,6 +387,56 @@ private struct RecordingPlayerView: View {
     /// ドラッグで窓ごと動かす部品（動画の上・バーの何もない所・✙ に重ねる）。右クリックで、操作バーと同じ操作のメニューを出す
     private var dragArea: WindowDragArea {
         WindowDragArea(menu: { model.makeContextMenu() })
+    }
+
+    /// クリップボードにコピー（動画（MP4）か GIF を選ぶ。枠だけの台に、コピーの印と「MP4 | GIF」を並べる）
+    private var copyButtons: some View {
+        HStack(spacing: 0) {
+            Image(systemName: "doc.on.doc")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(.leading, 8)
+                .padding(.trailing, 2)
+            copySegment("MP4", help: "動画（MP4）をクリップボードにコピー（ファイルとして貼り付けられる）", action: model.copy)
+            Rectangle().fill(Color.white.opacity(0.35)).frame(width: 1, height: 12)
+            copySegment(model.isCopyingGIF ? "…" : "GIF", help: "GIF を作ってクリップボードにコピー（GIF の画像としても、ファイルとしても貼り付けられる。音は入らない）", action: model.copyGIF)
+                .disabled(model.isCopyingGIF)
+        }
+        .frame(height: 22)
+        .background(Capsule().strokeBorder(Color.white.opacity(0.4)))
+    }
+
+    private func copySegment(_ title: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .hoverHint(help)
+        .hoverRole()
+    }
+
+    /// 上げる先（Gyazo）に GIF を上げて、共有リンクをコピー（塗った台に、リンクの印と上げる先の名前。クリップボードへのコピーと見分けられるように）
+    private var linkButton: some View {
+        let label = UploadDestinations.current?.id.label ?? "リンク"
+        return Button(action: model.uploadGIF) {
+            Label(label, systemImage: "link")
+                .labelStyle(.titleAndIcon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 9)
+                .frame(height: 22)
+                .background(Capsule().fill(Color.accentColor.opacity(0.75)))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(model.isUploading)
+        .opacity(model.isUploading ? 0.5 : 1)
+        .hoverHint("GIF にして \(UploadDestinations.current?.id.label ?? "上げる先") に上げ、共有リンク（URL）をコピー（上げる先は設定の「共有」。大きいときは小さくして上げる。音は入らない。2 回目からは、前に上げたリンクをコピー）")
+        .hoverRole()
     }
 
     /// 音を出す・消す（音の入っていない録画では押せない。録画ごとにバーの幅が変わらないよう、いつも出しておく）

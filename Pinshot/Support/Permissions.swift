@@ -60,6 +60,19 @@ enum AccessibilityPermission {
         _ = AXIsProcessTrustedWithOptions(options)
         PrivacySettings.open("Privacy_Accessibility")
     }
+
+    /// 右クリックのメニューの最後に足す案内（許可していないときだけ）。
+    /// メニューを開いている間は、許可がないとショートカットが届かず、メニューごと撮れないので、その理由と許可の入口を出す
+    static var menuCaptureHint: [MenuEntry] {
+        guard !isGranted else { return [] }
+        let shortcut = AppSettings.shared.shortcut(for: .captureRegion)?.displayString ?? "ショートカット"
+        return [
+            .separator,
+            .item(title: "このメニューを \(shortcut) で撮るには、アクセシビリティの許可が必要です…", image: MenuEntry.symbol("hand.raised")) {
+                request()
+            },
+        ]
+    }
 }
 
 // MARK: - マイク
