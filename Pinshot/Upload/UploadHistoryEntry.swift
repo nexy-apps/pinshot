@@ -13,6 +13,9 @@ struct UploadHistoryEntry: Codable, HistoryItem, Equatable {
     var kind: ExportKind
     /// 保存先に付けたファイル名
     var fileName: String
+    /// 元の録画のファイル名（録画を GIF にして上げたとき。前の版の履歴にはない）。
+    /// 録画は中身が変わらないので、同じ録画を同じ上げる先にもう一度上げるときは、作り直さずにこのリンクを使う
+    var sourceName: String? = nil
 
     var destination: UploadDestinationID { remote.destination }
 
@@ -30,6 +33,11 @@ enum UploadHistoryRules {
     /// 新しいものを先頭に足す（同じ ID のものがあれば置き換える）
     static func adding(_ entry: UploadHistoryEntry, to entries: [UploadHistoryEntry]) -> [UploadHistoryEntry] {
         [entry] + entries.filter { $0.id != entry.id }
+    }
+
+    /// sourceName の録画を destination に上げた、いちばん新しいもの（entries は新しい順）。なければ nil
+    static func latest(forSource sourceName: String, destination: UploadDestinationID, in entries: [UploadHistoryEntry]) -> UploadHistoryEntry? {
+        entries.first { $0.sourceName == sourceName && $0.destination == destination }
     }
 
     /// 残す数を超えた古いもの（entries は新しい順）

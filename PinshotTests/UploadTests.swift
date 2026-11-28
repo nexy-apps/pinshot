@@ -188,6 +188,27 @@ final class UploadHistoryTests: XCTestCase {
         )
     }
 
+    func testLatestForSourcePicksNewestOnSameDestination() {
+        // 録画を GIF にして上げたものは、元の録画の名前で探せる（新しい順の一覧の、最初に合ったもの）
+        var newer = entry(date: Date(timeIntervalSince1970: 1_795_000_100))
+        newer.sourceName = "Pinshot 録画 2026-11-28 19.35.45.mp4"
+        var older = entry(date: Date(timeIntervalSince1970: 1_795_000_000))
+        older.sourceName = newer.sourceName
+        let other = entry()
+        let entries = [newer, other, older]
+        XCTAssertEqual(UploadHistoryRules.latest(forSource: "Pinshot 録画 2026-11-28 19.35.45.mp4", destination: .gyazo, in: entries)?.id, newer.id)
+        // 上げていない録画は見つからない（作って上げる）
+        XCTAssertNil(UploadHistoryRules.latest(forSource: "Pinshot 録画 2026-11-28 20.00.00.mp4", destination: .gyazo, in: entries))
+    }
+
+    func testSourceNameRoundTripsAndOldEntriesHaveNone() throws {
+        var original = entry()
+        original.sourceName = "Pinshot 録画 2026-11-28 19.35.45.mp4"
+        XCTAssertEqual(try JSONDecoder().decode(UploadHistoryEntry.self, from: JSONEncoder().encode(original)), original)
+        // 元の録画を覚えていない前の版の履歴は、nil のまま読める（もう一度上げたときに、作って上げる）
+        XCTAssertNil(try JSONDecoder().decode(UploadHistoryEntry.self, from: JSONEncoder().encode(entry())).sourceName)
+    }
+
     func testEntryRoundTripsThroughJSON() throws {
         let original = entry()
         let decoded = try JSONDecoder().decode(UploadHistoryEntry.self, from: JSONEncoder().encode(original))

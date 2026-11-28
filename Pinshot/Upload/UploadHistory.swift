@@ -22,10 +22,10 @@ final class UploadHistory: ObservableObject {
 
     // MARK: - 足す
 
-    /// 上げたものを足す（thumbnail があれば、縮小画像も残す）
+    /// 上げたものを足す（thumbnail があれば、縮小画像も残す。sourceName は、録画を GIF にして上げたときの元の録画のファイル名）
     @discardableResult
-    func add(remote: RemoteFile, link: SharedLink, kind: ExportKind, fileName: String, thumbnail: CGImage?) -> UploadHistoryEntry {
-        let entry = UploadHistoryEntry(id: UUID(), date: Date(), remote: remote, link: link, kind: kind, fileName: fileName)
+    func add(remote: RemoteFile, link: SharedLink, kind: ExportKind, fileName: String, thumbnail: CGImage?, sourceName: String? = nil) -> UploadHistoryEntry {
+        let entry = UploadHistoryEntry(id: UUID(), date: Date(), remote: remote, link: link, kind: kind, fileName: fileName, sourceName: sourceName)
         entries = UploadHistoryRules.adding(entry, to: entries)
         removeOverLimit()
         if let thumbnail {
@@ -46,6 +46,11 @@ final class UploadHistory: ObservableObject {
     }
 
     // MARK: - 使う
+
+    /// sourceName の録画を destination に上げた、いちばん新しいもの（なければ nil）
+    func latestEntry(forSource sourceName: String, destination: UploadDestinationID) -> UploadHistoryEntry? {
+        UploadHistoryRules.latest(forSource: sourceName, destination: destination, in: entries)
+    }
 
     /// 一覧に出す縮小画像（なければ nil。書き終える前も nil）
     func thumbnail(for entry: UploadHistoryEntry) -> NSImage? {
