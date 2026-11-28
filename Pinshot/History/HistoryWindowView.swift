@@ -64,7 +64,7 @@ struct HistoryWindowView: View {
             }
         }
         .overlay(alignment: .bottom) { HistoryNoticeView(notice: notice) }
-        .frame(minWidth: 460, minHeight: 340)
+        .frame(minWidth: CaptureHistoryWindowController.minimumSize.width, minHeight: CaptureHistoryWindowController.minimumSize.height)
     }
 
     /// 上の帯（左に「画像 / 文字」。右に、画像なら表示方法、文字なら探す欄と表示方法）

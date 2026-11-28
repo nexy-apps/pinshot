@@ -260,6 +260,8 @@ struct HistoryFooterButton: View {
     private var button: some View {
         Button(role: role, action: action) {
             Label(title, systemImage: symbol)
+                // 名前を「…」で切らない（何のボタンか分からなくなるため。ウィンドウの最小の幅は、これが収まるように決めている）
+                .fixedSize()
         }
         .hoverRole()
     }
